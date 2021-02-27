@@ -53,6 +53,9 @@
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/utils.h>
 
+// debug for visualization
+#include <tf/transform_datatypes.h>
+
 using namespace std;
 using namespace costmap_2d;
 
@@ -70,7 +73,7 @@ namespace base_local_planner{
 
       max_vel_x_ = config.max_vel_x;
       min_vel_x_ = config.min_vel_x;
-      
+
       max_vel_th_ = config.max_vel_theta;
       min_vel_th_ = config.min_vel_theta;
       min_in_place_vel_th_ = config.min_in_place_vel_theta;
@@ -111,7 +114,7 @@ namespace base_local_planner{
       heading_lookahead_ = config.heading_lookahead;
 
       holonomic_robot_ = config.holonomic_robot;
-      
+
       backup_vel_ = config.escape_vel;
 
       dwa_ = config.dwa;
@@ -136,7 +139,7 @@ namespace base_local_planner{
       }
 
       y_vels_ = y_vels;
-      
+
   }
 
   TrajectoryPlanner::TrajectoryPlanner(WorldModel& world_model,
@@ -169,7 +172,8 @@ namespace base_local_planner{
     max_vel_th_(max_vel_th), min_vel_th_(min_vel_th), min_in_place_vel_th_(min_in_place_vel_th),
     backup_vel_(backup_vel),
     dwa_(dwa), heading_scoring_(heading_scoring), heading_scoring_timestep_(heading_scoring_timestep),
-    simple_attractor_(simple_attractor), y_vels_(y_vels), stop_time_buffer_(stop_time_buffer), sim_period_(sim_period)
+    simple_attractor_(simple_attractor), y_vels_(y_vels), stop_time_buffer_(stop_time_buffer), sim_period_(sim_period),
+    debug_pnh_("~")
   {
     //the robot is not stuck to begin with
     stuck_left = false;
@@ -186,6 +190,9 @@ namespace base_local_planner{
 
 
     costmap_2d::calculateMinAndMaxDistances(footprint_spec_, inscribed_radius_, circumscribed_radius_);
+
+    // debug for trajectory visualization
+    debug_pub_viz_ = debug_pnh_.advertise<visualization_msgs::MarkerArray>("debug_trajectory_candidates", 1);
   }
 
   TrajectoryPlanner::~TrajectoryPlanner(){}
@@ -536,6 +543,9 @@ namespace base_local_planner{
   Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double theta,
       double vx, double vy, double vtheta,
       double acc_x, double acc_y, double acc_theta) {
+
+    std::vector<Trajectory> debug_trajectory_candidates;
+
     //compute feasible velocity limits in robot space
     double max_vel_x = max_vel_x_, max_vel_theta;
     double min_vel_x, min_vel_theta;
@@ -589,6 +599,7 @@ namespace base_local_planner{
         //first sample the straight trajectory
         generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp,
             acc_x, acc_y, acc_theta, impossible_cost, *comp_traj);
+        debug_trajectory_candidates.push_back(*comp_traj);
 
         //if the new trajectory is better... let's take it
         if(comp_traj->cost_ >= 0 && (comp_traj->cost_ < best_traj->cost_ || best_traj->cost_ < 0)){
@@ -602,6 +613,7 @@ namespace base_local_planner{
         for(int j = 0; j < vtheta_samples_ - 1; ++j){
           generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp,
               acc_x, acc_y, acc_theta, impossible_cost, *comp_traj);
+          debug_trajectory_candidates.push_back(*comp_traj);
 
           //if the new trajectory is better... let's take it
           if(comp_traj->cost_ >= 0 && (comp_traj->cost_ < best_traj->cost_ || best_traj->cost_ < 0)){
@@ -622,6 +634,7 @@ namespace base_local_planner{
         vtheta_samp = 0.0;
         generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp,
             acc_x, acc_y, acc_theta, impossible_cost, *comp_traj);
+        debug_trajectory_candidates.push_back(*comp_traj);
 
         //if the new trajectory is better... let's take it
         if(comp_traj->cost_ >= 0 && (comp_traj->cost_ < best_traj->cost_ || best_traj->cost_ < 0)){
@@ -635,6 +648,7 @@ namespace base_local_planner{
         vtheta_samp = 0.0;
         generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp,
             acc_x, acc_y, acc_theta, impossible_cost, *comp_traj);
+        debug_trajectory_candidates.push_back(*comp_traj);
 
         //if the new trajectory is better... let's take it
         if(comp_traj->cost_ >= 0 && (comp_traj->cost_ < best_traj->cost_ || best_traj->cost_ < 0)){
@@ -660,6 +674,7 @@ namespace base_local_planner{
 
       generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp_limited,
           acc_x, acc_y, acc_theta, impossible_cost, *comp_traj);
+      debug_trajectory_candidates.push_back(*comp_traj);
 
       //if the new trajectory is better... let's take it...
       //note if we can legally rotate in place we prefer to do that rather than move with y velocity
@@ -745,6 +760,8 @@ namespace base_local_planner{
           fabs(angles::shortest_angular_distance(escape_theta_, theta)) > escape_reset_theta_){
         escaping_ = false;
       }
+
+      publishTrajectoryCandidatesDebugMarker(debug_trajectory_candidates);
 
       return *best_traj;
     }
@@ -996,6 +1013,64 @@ namespace base_local_planner{
     y = path_map_.goal_y_;
   }
 
+  void TrajectoryPlanner::publishTrajectoryCandidatesDebugMarker(const std::vector<Trajectory> &trajs) {
+
+    // get max cost
+    double max_cost = 0.0;
+    double min_cost = 1.0e10;
+    for (const auto& t : trajs)
+    {
+      if (max_cost < t.cost_) max_cost = t.cost_;
+      if (min_cost > t.cost_ && t.cost_ >= 0.0) min_cost = t.cost_;
+    }
+
+    visualization_msgs::MarkerArray ma;
+    const double width = 0.001;
+    uint32_t id = 0;
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "/map";
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "dwa_trajectory_candidates";
+    marker.type = visualization_msgs::Marker::LINE_STRIP;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.lifetime = ros::Duration(0.1);
+    marker.scale.x = width;
+    marker.color.a = 1.0;
+    marker.pose.orientation.w = 1.0;
+
+    auto createColorFromCost = [&max_cost, &min_cost](double cost) {
+      std_msgs::ColorRGBA c;
+      c.a = 1.0;
+      if (max_cost <= 0.0 || cost <= 0.0) {
+        c.r = 1.0;
+        c.g = 1.0;
+        c.b = 1.0;
+      } else {
+        double tmp = std::pow((cost - min_cost) / (max_cost - min_cost), 1.0) * 255.0;
+        c.r = 1.0 - tmp;
+        c.g = tmp;
+        c.b = 0.0;
+      }
+      return c;
+    };
+
+    for (const auto &t : trajs) {
+      marker.points.clear();
+      double x, y, th;
+      geometry_msgs::Point p;
+      for (unsigned int i = 0; i < t.getPointsSize(); ++i){
+        t.getPoint(i, x, y, th);
+        p.x = x;
+        p.y = y;
+        marker.points.push_back(p);
+      }
+      marker.id = id++;
+      marker.color = createColorFromCost(t.cost_);
+
+      // printf("i = %lu, cost = %f, rate = %f, max= %f, min = %f\n ", id, t.cost_, (t.cost_ - min_cost) / (max_cost - min_cost), max_cost, min_cost);
+      ma.markers.push_back(marker);
+    }
+
+    debug_pub_viz_.publish(ma);
+  }
 };
-
-
