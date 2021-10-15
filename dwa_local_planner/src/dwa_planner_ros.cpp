@@ -223,7 +223,7 @@ namespace dwa_local_planner {
     cmd_vel.angular.z = tf2::getYaw(drive_cmds.pose.orientation);
 
     // Low pass filter
-    double kpre = 0.65;
+    double kpre = 0.35;
     cmd_vel.angular.z = (1 - kpre) * cmd_vel.angular.z + kpre * pre_cmd_vel_angular_z;
     cmd_vel.linear.x  = (1 - kpre) * cmd_vel.linear.x + kpre * pre_cmd_vel_linear_x;
 
