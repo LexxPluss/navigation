@@ -18,14 +18,16 @@ namespace safety_direction_recovery
       SafetyDirectionRecovery();
 
       void initialize(std::string name, tf2_ros::Buffer*,
-          costmap_2d::Costmap2DROS*, costmap_2d::Costmap2DROS* local_costmap);
+          costmap_2d::Costmap2DROS* global_costmap_, costmap_2d::Costmap2DROS* local_costmap);
 
       void runBehavior();
 
       ~SafetyDirectionRecovery();
     private:
       costmap_2d::Costmap2DROS* local_costmap_;
+      costmap_2d::Costmap2DROS* global_costmap_;
       base_local_planner::CostmapModel* world_model_;
+      base_local_planner::CostmapModel* global_model_;
 
       bool initialized_ = false;
       double frequency_, sim_granularity_, min_vel_x_, max_vel_x_, inscribed_radius_, circumscribed_radius_;

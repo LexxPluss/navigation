@@ -62,16 +62,17 @@ void frontRightLidarDistanceCallback(const std_msgs::Float32::ConstPtr& msg)
 
 PLUGINLIB_EXPORT_CLASS(safety_direction_recovery::SafetyDirectionRecovery, nav_core::RecoveryBehavior)
   namespace safety_direction_recovery{
-    SafetyDirectionRecovery::SafetyDirectionRecovery(): local_costmap_(NULL), initialized_(false), world_model_(NULL)
+    SafetyDirectionRecovery::SafetyDirectionRecovery(): local_costmap_(NULL), global_costmap_(NULL), initialized_(false), world_model_(NULL), global_model_(NULL)
     {
     }
 
     void SafetyDirectionRecovery::initialize(std::string name, tf2_ros::Buffer*,
-        costmap_2d::Costmap2DROS*, costmap_2d::Costmap2DROS* local_costmap)
+        costmap_2d::Costmap2DROS* global_costmap, costmap_2d::Costmap2DROS* local_costmap)
     {
       if(!initialized_)
       {
         local_costmap_ = local_costmap;
+        global_costmap_ = global_costmap;
 
         // get some parameters from the parameter server
         ros::NodeHandle private_nh("~/" + name);
@@ -105,6 +106,7 @@ PLUGINLIB_EXPORT_CLASS(safety_direction_recovery::SafetyDirectionRecovery, nav_c
 //        min_vel_x_ = -1.0f;
 
         world_model_ = new base_local_planner::CostmapModel(*local_costmap_->getCostmap());
+        global_model_ = new base_local_planner::CostmapModel(*global_costmap_->getCostmap());
 
         initialized_ = true;
 
@@ -137,6 +139,7 @@ PLUGINLIB_EXPORT_CLASS(safety_direction_recovery::SafetyDirectionRecovery, nav_c
     SafetyDirectionRecovery::~SafetyDirectionRecovery()
     {
       delete world_model_;
+      delete global_model_;
     }
  
     double SafetyDirectionRecovery::calculateDist(geometry_msgs::PoseStamped initial, geometry_msgs::PoseStamped current)
@@ -318,9 +321,11 @@ PLUGINLIB_EXPORT_CLASS(safety_direction_recovery::SafetyDirectionRecovery, nav_c
         double sim_x = robot_x + tmp_distance * cos(robot_angle + sim_angle);
         double sim_y = robot_y + tmp_distance * sin(robot_angle + sim_angle);
         double tmp_cost = world_model_->footprintCost(sim_x, sim_y, robot_angle + sim_angle, local_costmap_->getRobotFootprint(), inscribed_radius_, circumscribed_radius_);
+        double tmp_gcost = global_model_->footprintCost(sim_x, sim_y, robot_angle + sim_angle, local_costmap_->getRobotFootprint(), inscribed_radius_, circumscribed_radius_);
 
         tmp_distance += sim_granularity_;
         if (tmp_cost < 0) total_cost += tmp_cost;
+        if (tmp_gcost < 0) total_cost += tmp_gcost;
       }
 
       return total_cost;
