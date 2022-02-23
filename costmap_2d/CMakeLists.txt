@@ -197,6 +197,7 @@ install( TARGETS
     costmap_2d_markers
     costmap_2d_cloud
     costmap_2d_node
+    object_classifier
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
@@ -220,3 +221,7 @@ install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
   PATTERN ".svn" EXCLUDE
 )
+
+install(DIRECTORY cfg launch msg plugins
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  PATTERN ".svn" EXCLUDE)
