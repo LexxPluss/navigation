@@ -28,7 +28,7 @@ install(TARGETS voxel_grid
 
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  PATTERN ".svn" EXCLUDE)
+)
 
 if(CATKIN_ENABLE_TESTING)
   catkin_add_gtest(voxel_grid_tests test/voxel_grid_tests.cpp)
