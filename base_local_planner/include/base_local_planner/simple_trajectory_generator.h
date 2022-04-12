@@ -38,9 +38,11 @@
 #ifndef SIMPLE_TRAJECTORY_GENERATOR_H_
 #define SIMPLE_TRAJECTORY_GENERATOR_H_
 
+#include <ros/ros.h>
 #include <base_local_planner/trajectory_sample_generator.h>
 #include <base_local_planner/local_planner_limits.h>
 #include <Eigen/Core>
+#include <lexxauto_msgs/VariableFootprint.h>
 
 namespace base_local_planner {
 
@@ -150,6 +152,9 @@ public:
   static Eigen::Vector3f computeNewVelocities(const Eigen::Vector3f& sample_target_vel,
       const Eigen::Vector3f& vel, Eigen::Vector3f acclimits, double dt);
 
+  Eigen::Vector3f computeNewVelocitiesAckermann(const Eigen::Vector3f& sample_target_vel,
+      const Eigen::Vector3f& vel, const Eigen::Vector3f& pos, Eigen::Vector3f acclimits, double dt);
+
   bool generateTrajectory(
         Eigen::Vector3f pos,
         Eigen::Vector3f vel,
@@ -165,9 +170,15 @@ protected:
   Eigen::Vector3f pos_;
   Eigen::Vector3f vel_;
 
+  ros::Subscriber variable_footprint_sub_;
+  void variable_footprint_callback(const lexxauto_msgs::VariableFootprint::ConstPtr& msg);
+  float cargo_angle_;
+
   // whether velocity of trajectory changes over time or not
   bool continued_acceleration_;
   bool discretize_by_time_;
+  bool is_actuator_connect_;
+  bool use_variable_footprint_in_planning_;
 
   double sim_time_, sim_granularity_, angular_sim_granularity_;
   bool use_dwa_;

@@ -144,6 +144,10 @@ void SimpleTrajectoryGenerator::initialise(
       y_it.reset();
     }
   }
+  
+
+  ros::NodeHandle nh;
+  variable_footprint_sub_ = nh.subscribe("variable_footprint", 10, &SimpleTrajectoryGenerator::variable_footprint_callback, this);
 }
 
 
@@ -343,7 +347,11 @@ bool SimpleTrajectoryGenerator::generateTrajectory(
 
     if (continued_acceleration_) {
       //calculate velocities
-      loop_vel = computeNewVelocities(sample_target_vel, loop_vel, limits_->getAccLimits(), dt);
+      if (is_actuator_connect_ && use_variable_footprint_in_planning_) {
+        loop_vel = computeNewVelocitiesAckermann(sample_target_vel, loop_vel, pos, limits_->getAccLimits(), dt);
+      } else {
+        loop_vel = computeNewVelocities(sample_target_vel, loop_vel, limits_->getAccLimits(), dt);
+      }
       //ROS_WARN_NAMED("Generator", "Flag: %d, Loop_Vel %f, %f, %f", continued_acceleration_, loop_vel[0], loop_vel[1], loop_vel[2]);
     }
 
@@ -378,6 +386,35 @@ Eigen::Vector3f SimpleTrajectoryGenerator::computeNewVelocities(const Eigen::Vec
     }
   }
   return new_vel;
+}
+
+/**
+ * change vel using acceleration limits to converge towards sample_target-vel
+ */
+Eigen::Vector3f SimpleTrajectoryGenerator::computeNewVelocitiesAckermann(const Eigen::Vector3f& sample_target_vel,
+    const Eigen::Vector3f& vel, const Eigen::Vector3f& pos, Eigen::Vector3f acclimits, double dt) {
+  Eigen::Vector3f new_vel = Eigen::Vector3f::Zero();
+  for (int i = 0; i < 3; ++i) {
+    if (vel[i] < sample_target_vel[i]) {
+      new_vel[i] = std::min(double(sample_target_vel[i]), vel[i] + acclimits[i] * dt);
+    } else {
+      new_vel[i] = std::max(double(sample_target_vel[i]), vel[i] - acclimits[i] * dt);
+    }
+  }
+  float sample_vel_mag = sqrt(pow(new_vel[0], 2) + pow(new_vel[1], 2));
+  float cargo_length = 1.2;
+  new_vel[0] = sample_vel_mag * cos(this->cargo_angle_) * cos(pos[2]);
+  new_vel[1] = sample_vel_mag * cos(this->cargo_angle_) * sin(pos[2]);
+  new_vel[2] = sample_vel_mag * sin(this->cargo_angle_) / cargo_length;
+
+  return new_vel;
+}
+
+void SimpleTrajectoryGenerator::variable_footprint_callback(const lexxauto_msgs::VariableFootprint::ConstPtr& msg)
+{
+  this->cargo_angle_ = msg->cargo_angle;
+  this->is_actuator_connect_ = msg->connect;
+  this->use_variable_footprint_in_planning_ = msg->use_variable_footprint_in_planning;
 }
 
 } /* namespace base_local_planner */
