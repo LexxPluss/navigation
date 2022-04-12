@@ -152,7 +152,7 @@ public:
   static Eigen::Vector3f computeNewVelocities(const Eigen::Vector3f& sample_target_vel,
       const Eigen::Vector3f& vel, Eigen::Vector3f acclimits, double dt);
 
-  Eigen::Vector3f computeNewVelocitiesAckermann(const Eigen::Vector3f& sample_target_vel,
+  Eigen::Vector3f computeNewVelocitiesAckermannSteering(const Eigen::Vector3f& sample_target_vel,
       const Eigen::Vector3f& vel, const Eigen::Vector3f& pos, Eigen::Vector3f acclimits, double dt);
 
   bool generateTrajectory(
@@ -173,6 +173,7 @@ protected:
   ros::Subscriber variable_footprint_sub_;
   void variable_footprint_callback(const lexxauto_msgs::VariableFootprint::ConstPtr& msg);
   float cargo_angle_;
+  float front_rear_wheel_distance_;
 
   // whether velocity of trajectory changes over time or not
   bool continued_acceleration_;

@@ -144,7 +144,6 @@ void SimpleTrajectoryGenerator::initialise(
       y_it.reset();
     }
   }
-  
 
   ros::NodeHandle nh;
   variable_footprint_sub_ = nh.subscribe("variable_footprint", 10, &SimpleTrajectoryGenerator::variable_footprint_callback, this);
@@ -348,7 +347,7 @@ bool SimpleTrajectoryGenerator::generateTrajectory(
     if (continued_acceleration_) {
       //calculate velocities
       if (is_actuator_connect_ && use_variable_footprint_in_planning_) {
-        loop_vel = computeNewVelocitiesAckermann(sample_target_vel, loop_vel, pos, limits_->getAccLimits(), dt);
+        loop_vel = computeNewVelocitiesAckermannSteering(sample_target_vel, loop_vel, pos, limits_->getAccLimits(), dt);
       } else {
         loop_vel = computeNewVelocities(sample_target_vel, loop_vel, limits_->getAccLimits(), dt);
       }
@@ -389,9 +388,9 @@ Eigen::Vector3f SimpleTrajectoryGenerator::computeNewVelocities(const Eigen::Vec
 }
 
 /**
- * change vel using acceleration limits to converge towards sample_target-vel
+ * compute sample velocities based on Ackermann Steering
  */
-Eigen::Vector3f SimpleTrajectoryGenerator::computeNewVelocitiesAckermann(const Eigen::Vector3f& sample_target_vel,
+Eigen::Vector3f SimpleTrajectoryGenerator::computeNewVelocitiesAckermannSteering(const Eigen::Vector3f& sample_target_vel,
     const Eigen::Vector3f& vel, const Eigen::Vector3f& pos, Eigen::Vector3f acclimits, double dt) {
   Eigen::Vector3f new_vel = Eigen::Vector3f::Zero();
   for (int i = 0; i < 3; ++i) {
@@ -402,10 +401,9 @@ Eigen::Vector3f SimpleTrajectoryGenerator::computeNewVelocitiesAckermann(const E
     }
   }
   float sample_vel_mag = sqrt(pow(new_vel[0], 2) + pow(new_vel[1], 2));
-  float cargo_length = 1.2;
   new_vel[0] = sample_vel_mag * cos(this->cargo_angle_) * cos(pos[2]);
   new_vel[1] = sample_vel_mag * cos(this->cargo_angle_) * sin(pos[2]);
-  new_vel[2] = sample_vel_mag * sin(this->cargo_angle_) / cargo_length;
+  new_vel[2] = sample_vel_mag * sin(this->cargo_angle_) / front_rear_wheel_distance_;
 
   return new_vel;
 }
@@ -413,6 +411,7 @@ Eigen::Vector3f SimpleTrajectoryGenerator::computeNewVelocitiesAckermann(const E
 void SimpleTrajectoryGenerator::variable_footprint_callback(const lexxauto_msgs::VariableFootprint::ConstPtr& msg)
 {
   this->cargo_angle_ = msg->cargo_angle;
+  this->front_rear_wheel_distance_ = msg->front_rear_wheel_distance;
   this->is_actuator_connect_ = msg->connect;
   this->use_variable_footprint_in_planning_ = msg->use_variable_footprint_in_planning;
 }
