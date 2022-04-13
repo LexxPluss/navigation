@@ -401,8 +401,8 @@ Eigen::Vector3f SimpleTrajectoryGenerator::computeNewVelocitiesAckermannSteering
     }
   }
   float sample_vel_mag = sqrt(pow(new_vel[0], 2) + pow(new_vel[1], 2));
-  new_vel[0] = sample_vel_mag * cos(this->cargo_angle_) * cos(pos[2]);
-  new_vel[1] = sample_vel_mag * cos(this->cargo_angle_) * sin(pos[2]);
+  new_vel[0] = sample_vel_mag * cos(this->cargo_angle_ + pos[2]);
+  new_vel[1] = sample_vel_mag * sin(this->cargo_angle_ + pos[2]);
   new_vel[2] = sample_vel_mag * sin(this->cargo_angle_) / front_rear_wheel_distance_;
 
   return new_vel;
