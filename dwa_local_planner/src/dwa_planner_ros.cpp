@@ -433,6 +433,7 @@ namespace dwa_local_planner {
       if (!was_rotate || std::abs(current_th - turn_turget_th) < (5.0 * M_PI / 180.0))
       {
         this->rotate_to_goal_ = false;
+        this->latchedStopRotateController_.resetLatching();
       }
 
       return true;
