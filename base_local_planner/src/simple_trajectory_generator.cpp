@@ -56,6 +56,10 @@ void SimpleTrajectoryGenerator::initialise(
   sample_params_.insert(sample_params_.end(), additional_samples.begin(), additional_samples.end());
 }
 
+void SimpleTrajectoryGenerator::cargo_angle_callback(const std_msgs::Float64::ConstPtr& msg)
+{
+  cargo_angle_ = msg->data;
+}
 
 void SimpleTrajectoryGenerator::initialise(
     const Eigen::Vector3f& pos,
@@ -67,6 +71,8 @@ void SimpleTrajectoryGenerator::initialise(
   /*
    * We actually generate all velocity sample vectors here, from which to generate trajectories later on
    */
+  this->cargo_angle_sub_ = this->nh_.subscribe("cargo_angle", 1, &SimpleTrajectoryGenerator::cargo_angle_callback, this);
+
   double max_vel_th = limits->max_vel_theta;
   double min_vel_th = -1.0 * max_vel_th;
   discretize_by_time_ = discretize_by_time;
@@ -114,6 +120,19 @@ void SimpleTrajectoryGenerator::initialise(
       min_vel[1] = std::max(min_vel_y, vel[1] - acc_lim[1] * sim_period_);
       min_vel[2] = std::max(min_vel_th, vel[2] - acc_lim[2] * sim_period_);
     }
+
+    /*
+  if (cargo_angle_ > 0 && cargo_angle_ < M_PI / 3.0)
+  {
+	  std::cerr << "1" << std::endl;
+	  max_vel[2] = 0.0;
+  }
+  if (cargo_angle_ < 0 && cargo_angle_ > -M_PI / 3.0)
+  {
+	  std::cerr << "4" << std::endl;
+	  min_vel[2] = 0.0;
+  }
+  */
 
     Eigen::Vector3f vel_samp = Eigen::Vector3f::Zero();
     VelocityIterator x_it(min_vel[0], max_vel[0], vsamples[0]);

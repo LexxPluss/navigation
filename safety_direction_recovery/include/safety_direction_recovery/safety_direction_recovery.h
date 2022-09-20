@@ -9,6 +9,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <lexxauto_msgs/safety_status.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/Float64.h>
 
 namespace safety_direction_recovery
 {
@@ -26,6 +27,8 @@ namespace safety_direction_recovery
     private:
       costmap_2d::Costmap2DROS* local_costmap_;
       base_local_planner::CostmapModel* world_model_;
+
+      ros::Subscriber cargo_angle_sub_;
 
       bool initialized_ = false;
       double frequency_, sim_granularity_, min_vel_x_, max_vel_x_, inscribed_radius_, circumscribed_radius_;

@@ -119,6 +119,7 @@ namespace dwa_local_planner {
       bool isGoalReached();
 
       void actuator_position_callback(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg);
+      void cargo_angle_callback(const std_msgs::Float64::ConstPtr& msg);
 
       void call_nomotion_update_callback(const ros::TimerEvent& event);
       bool isInitialized() {
@@ -144,6 +145,7 @@ namespace dwa_local_planner {
       ros::Subscriber actuator_position_sub_;
       ros::ServiceClient nomotion_update_client_;
       ros::Timer nomotion_update_timer_;
+      ros::Subscriber cargo_angle_sub_;
 
       std_msgs::UInt8 vel_cmd_mode_msg_;
       visualization_msgs::Marker vel_cmd_mode_marker_msg_;
@@ -186,6 +188,8 @@ namespace dwa_local_planner {
       bool use_rotate_first_actuator_disconnect_;
       bool is_force_update_;
       double latch_unlock_distance_;
+
+      double cargo_angle_ = 0.0;
   };
 };
 #endif

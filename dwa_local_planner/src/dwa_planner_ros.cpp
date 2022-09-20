@@ -116,6 +116,7 @@ namespace dwa_local_planner {
       actuator_position_sub_ = nh.subscribe("actuator_position", 10, &DWAPlannerROS::actuator_position_callback, this);
       nomotion_update_client_ = nh.serviceClient<std_srvs::Empty>("request_nomotion_update");
       nomotion_update_timer_ = nh.createTimer(ros::Duration(1.0 / 10.0), &DWAPlannerROS::call_nomotion_update_callback, this);
+      actuator_position_sub_ = nh.subscribe("cargo_angle", 10, &DWAPlannerROS::cargo_angle_callback, this);
 
       // make sure to update the costmap we'll use for this cycle
       costmap_2d::Costmap2D* costmap = costmap_ros_->getCostmap();
@@ -485,6 +486,10 @@ namespace dwa_local_planner {
       {
         this->rotate_to_goal_ = false;
       }
+	    if (cargo_angle_ > -M_PI_2 && cargo_angle_ < M_PI_2)
+	    {
+//		    rotate_to_goal_ = false;
+	    }
 
       return true;
     }
@@ -513,6 +518,11 @@ namespace dwa_local_planner {
   void DWAPlannerROS::actuator_position_callback(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg)
   {
     this->is_actuator_connect_ = msg->connect;
+  }
+
+  void DWAPlannerROS::cargo_angle_callback(const std_msgs::Float64::ConstPtr& msg)
+  {
+    this->cargo_angle_ = msg->data;
   }
 
   void DWAPlannerROS::call_nomotion_update_callback(const ros::TimerEvent& event)

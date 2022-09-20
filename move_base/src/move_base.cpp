@@ -1231,6 +1231,8 @@ namespace move_base {
         for (int j=0; j<inner_loop_recovery_count; j++)
         {
           recovery_behaviors_.push_back(safety_direction);
+          recovery_behaviors_carrying_.push_back(safety_direction);
+	  /*
           if (use_safety_direction_recovery_in_towing_)
           {
             recovery_behaviors_carrying_.push_back(safety_direction);
@@ -1247,14 +1249,17 @@ namespace move_base {
               recovery_behaviors_carrying_.push_back(rotate_small);
             }
           }
+	  */
         }
         if (clearing_rotation_allowed_)
         {
           recovery_behaviors_.push_back(rotate);
+	  /*
           if (use_rotate_recovery_in_towing_)
           {
             recovery_behaviors_carrying_.push_back(rotate);
           }
+	  */
         }
       }
 

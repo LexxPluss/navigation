@@ -14,6 +14,12 @@ float rear_lidar_distance_;
 float rear_right_lidar_distance_;
 float right_lidar_distance_;
 float front_right_lidar_distance_;
+double cargo_angle_ = 0.0;
+
+void cargo_angle_callback(const std_msgs::Float64::ConstPtr& msg)
+{
+  cargo_angle_ = msg->data;
+}
 
 void safetyStatusCallback(const lexxauto_msgs::safety_status::ConstPtr& msg)
 {
@@ -127,6 +133,8 @@ PLUGINLIB_EXPORT_CLASS(safety_direction_recovery::SafetyDirectionRecovery, nav_c
           nh.subscribe<std_msgs::Float32>("right_lidar_distance", 1, rightLidarDistanceCallback);
         front_right_lidar_distance_sub_ =
           nh.subscribe<std_msgs::Float32>("front_right_lidar_distance", 1, frontRightLidarDistanceCallback);
+        cargo_angle_sub_ =
+          nh.subscribe<std_msgs::Float64>("cargo_angle", 1, cargo_angle_callback);
       }
       else
       {
@@ -174,6 +182,9 @@ PLUGINLIB_EXPORT_CLASS(safety_direction_recovery::SafetyDirectionRecovery, nav_c
       calc_recovery_move(best_attitude, rotate_direction, recovery_rotate_angle, straight_direction);
 
       double angle_rotated = rotate((double)rotate_direction, recovery_rotate_angle);
+      // straight_direction = 1;
+      // double sign_dir = cargo_angle_ > 0 ? -1.0 : 1.0;
+      // double angle_rotated = rotate((double)sign_dir, M_PI * 2.0/3.0);
       double dist_travelled = go_straight(straight_direction, best_dist_to_move);
 
       ROS_INFO("Safety direction recovery ended because the robot rotated %f and travelled %f.\n", angle_rotated, dist_travelled);

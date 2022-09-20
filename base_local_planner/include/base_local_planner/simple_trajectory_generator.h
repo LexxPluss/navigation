@@ -42,6 +42,9 @@
 #include <base_local_planner/local_planner_limits.h>
 #include <Eigen/Core>
 
+#include <ros/ros.h>
+#include <std_msgs/Float64.h>
+
 namespace base_local_planner {
 
 /**
@@ -154,6 +157,12 @@ protected:
   double sim_time_, sim_granularity_, angular_sim_granularity_;
   bool use_dwa_;
   double sim_period_; // only for dwa
+
+  ros::NodeHandle nh_;
+  ros::Subscriber cargo_angle_sub_;
+  double cargo_angle_ = 0.0;
+
+  void cargo_angle_callback(const std_msgs::Float64::ConstPtr& msg);
 };
 
 } /* namespace base_local_planner */
