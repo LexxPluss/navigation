@@ -181,11 +181,11 @@ PLUGINLIB_EXPORT_CLASS(safety_direction_recovery::SafetyDirectionRecovery, nav_c
       double straight_direction = 1;
       calc_recovery_move(best_attitude, rotate_direction, recovery_rotate_angle, straight_direction);
 
-      double angle_rotated = rotate((double)rotate_direction, recovery_rotate_angle);
+      // double angle_rotated = rotate((double)rotate_direction, recovery_rotate_angle);
       // straight_direction = 1;
       // double sign_dir = cargo_angle_ > 0 ? -1.0 : 1.0;
-      // double angle_rotated = rotate((double)sign_dir, M_PI * 2.0/3.0);
-      double dist_travelled = go_straight(straight_direction, best_dist_to_move);
+      double angle_rotated = 0.0;
+      double dist_travelled = go_straight(1.0, best_dist_to_move);
 
       ROS_INFO("Safety direction recovery ended because the robot rotated %f and travelled %f.\n", angle_rotated, dist_travelled);
       cmd_vel.linear.x = 0.0;
