@@ -976,17 +976,17 @@ void TebOptimalPlanner::AddEdgesKinematicsCarlike()
     beta += dbeta * dt;
     beta = g2o::normalize_theta(beta);
     VertexPose* beta_vertex = new VertexPose(0.0, 0.0, beta);
-    std::cerr << "beta: " << beta << std::endl;
 
     double delta_rot = g2o::normalize_theta(g2o::normalize_theta(teb_.PoseVertex(i)->theta()) -
                                             g2o::normalize_theta(teb_.PoseVertex(0)->theta()));
-    double diff_angle = cargo_angle_ - delta_rot;
+    double cargo_angle = g2o::normalize_theta(cargo_angle_);
+    double diff_angle = g2o::normalize_theta(cargo_angle - delta_rot);
     VertexPose* dang_v = new VertexPose(0.0, 0.0, diff_angle);
 
     kinematics_edge->setVertex(0,teb_.PoseVertex(i));
     kinematics_edge->setVertex(1,teb_.PoseVertex(i+1));      
-    kinematics_edge->setVertex(2,beta_vertex);
-    //kinematics_edge->setVertex(2,dang_v);
+    //kinematics_edge->setVertex(2,beta_vertex);
+    kinematics_edge->setVertex(2,dang_v);
     kinematics_edge->setInformation(information_kinematics);
     kinematics_edge->setTebConfig(*cfg_);
     optimizer_->addEdge(kinematics_edge);
@@ -1017,6 +1017,7 @@ void TebOptimalPlanner::AddEdgesPreferRotDir()
   //information_rotdir.fill(cfg_->optim.weight_prefer_rotdir);
   information_rotdir.fill(100);
   
+  double cargo_angle = g2o::normalize_theta(cargo_angle_);
   for (int i=0; i < teb_.sizePoses()-1 && i < 3; ++i) // currently: apply to first 3 rotations
   {
     EdgePreferRotDir* rotdir_edge = new EdgePreferRotDir;
@@ -1024,12 +1025,18 @@ void TebOptimalPlanner::AddEdgesPreferRotDir()
     rotdir_edge->setVertex(1,teb_.PoseVertex(i+1));      
     rotdir_edge->setInformation(information_rotdir);
     
+    /*
     // if (prefer_rotdir_ == RotType::left)
-    if (cargo_angle_ < -M_PI/10.0 && cargo_angle_ > -M_PI)
+    if (cargo_angle < -M_PI/10.0 && cargo_angle > -5.0 * M_PI/6.0) {
+	    std::cerr << "preferLeft" << std::endl;
         rotdir_edge->preferLeft();
+    }
     // else if (prefer_rotdir_ == RotType::right)
-    else if (cargo_angle_ > M_PI/10.0 && cargo_angle_ < M_PI)
+    else if (cargo_angle > M_PI/10.0 && cargo_angle < 5.0 * M_PI/6.0) {
+	    std::cerr << "preferRight" << std::endl;
         rotdir_edge->preferRight();
+    }
+    */
     
     optimizer_->addEdge(rotdir_edge);
   }

@@ -199,25 +199,25 @@ public:
     ROS_ASSERT_MSG(cfg_, "You must call setTebConfig on EdgeKinematicsCarlike()");
     const VertexPose* conf1 = static_cast<const VertexPose*>(_vertices[0]);
     const VertexPose* conf2 = static_cast<const VertexPose*>(_vertices[1]);
-    //const VertexPose* conf_dang = static_cast<const VertexPose*>(_vertices[2]);
-    const VertexPose* conf_beta = static_cast<const VertexPose*>(_vertices[2]);
+    const VertexPose* conf_dang = static_cast<const VertexPose*>(_vertices[2]);
+    //const VertexPose* conf_beta = static_cast<const VertexPose*>(_vertices[2]);
 
     Eigen::Vector2d deltaS = conf2->position() - conf1->position();
 
-    //const double diff_angle = 0.5*conf_dang->theta();
-    const double beta = conf_beta->theta();
+    const double diff_angle = conf_dang->theta();
+    //const double beta = conf_beta->theta();
 
     // non holonomic constraint
     _error[0] = fabs( ( cos(conf1->theta())+cos(conf2->theta()) ) * deltaS[1] - ( sin(conf1->theta())+sin(conf2->theta()) ) * deltaS[0] );
 
     // angle constraint
     //_error[0] += 0.01*cos(diff_angle);
+    /*
     _error[0] += -0.001*cos(beta);
     if (beta > M_PI*4.0/5.0 || beta < -M_PI*4.0/5.0) {
       _error[0] += 0.01;
     }
 
-    /*
     Eigen::Vector2d dxy = conf2->position() - conf1->position();
     Eigen::Vector2d dtheta;
     dtheta << cos(conf1->theta()), sin(conf1->theta());
@@ -226,6 +226,8 @@ public:
       _error[0] += 0.001;
     }
     */
+    //std::cerr << "beta: " << beta << std::endl;
+    //std::cerr << "diff_angle: " << diff_angle << std::endl;
 
     // limit minimum turning radius
     double angle_diff = g2o::normalize_theta( conf2->theta() - conf1->theta() );
@@ -234,7 +236,11 @@ public:
     else if (cfg_->trajectory.exact_arc_length) // use exact computation of the radius
       _error[1] = penaltyBoundFromBelow(fabs(deltaS.norm()/(2*sin(angle_diff/2))), cfg_->robot.min_turning_radius, 0.0);
     else
-      _error[1] = penaltyBoundFromBelow(deltaS.norm() / fabs(angle_diff), cfg_->robot.min_turning_radius, 0.0); 
+      //if (!(beta >= -M_PI/4.0 && beta <= M_PI/4.0))
+      //if ((diff_angle >= -M_PI*5.0/6.0 && diff_angle < 0 && angle_diff > 0) ||
+      //    (diff_angle <= M_PI*5.0/6.0 && diff_angle > 0 && angle_diff < 0))
+        _error[1] = penaltyBoundFromBelow(deltaS.norm() / fabs(angle_diff), cfg_->robot.min_turning_radius, 0.0); 
+      //else _error[1] = 0; // straight line motion
     // This edge is not affected by the epsilon parameter, the user might add an exra margin to the min_turning_radius parameter.
     
     ROS_ASSERT_MSG(std::isfinite(_error[0]) && std::isfinite(_error[1]), "EdgeKinematicsCarlike::computeError() _error[0]=%f _error[1]=%f\n",_error[0],_error[1]);
