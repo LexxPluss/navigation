@@ -229,6 +229,9 @@ bool TebLocalPlannerROS::computeVelocityCommands(geometry_msgs::Twist& cmd_vel)
   geometry_msgs::TwistStamped dummy_velocity, cmd_vel_stamped;
   uint32_t outcome = computeVelocityCommands(dummy_pose, dummy_velocity, cmd_vel_stamped, dummy_message);
   cmd_vel = cmd_vel_stamped.twist;
+  if (cmd_vel.linear.x < 0) {
+	cmd_vel.angular.z *= -1;
+  }
   return outcome == mbf_msgs::ExePathResult::SUCCESS;
 }
 
