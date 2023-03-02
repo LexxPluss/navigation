@@ -44,6 +44,7 @@ double CurvatureCostFunction::scoreTrajectory(Trajectory &traj) {
     return 0.0;
   }
 
+  cargo_angle_ = normalize_angle(cargo_angle_);
   double delta_angle, next_cargo_angle;
   if (traj.getPointsSize() <= 1)
   {
@@ -80,7 +81,7 @@ double CurvatureCostFunction::scoreTrajectory(Trajectory &traj) {
     return -12;
   }
 
-  if (delta_angle == 0.0)
+  if (delta_angle == 0.0 || std::fabs(traj.xv_) < 0.01)
   {
     return 0.0;
   }
