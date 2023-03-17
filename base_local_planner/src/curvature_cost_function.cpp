@@ -39,16 +39,21 @@ void CurvatureCostFunction::setNotMoveThreshold(double not_move_threshold)
 
 double CurvatureCostFunction::scoreTrajectory(Trajectory &traj) {
 
+  //std::cerr << "######## scoreTrajectory ########" << std::endl;
   if (!this->is_cargo_enabled_ || this->curvature_radius_ <= 0.0)
   {
     return 0.0;
   }
 
+  int mode = 0;
   double delta_angle, next_cargo_angle;
   if (traj.getPointsSize() <= 1)
   {
-    delta_angle = traj.thetav_ * traj.time_delta_;
-    next_cargo_angle = base_local_planner::normalize_angle(cargo_angle_ + traj.thetav_);
+    // delta_angle = traj.thetav_ * traj.time_delta_;
+    // next_cargo_angle = base_local_planner::normalize_angle(cargo_angle_ + traj.thetav_);
+    delta_angle = 0.0;
+    next_cargo_angle = base_local_planner::normalize_angle(cargo_angle_ - traj.thetav_ * traj.time_delta_);
+    mode = 1;
   }
   else
   {
@@ -60,6 +65,7 @@ double CurvatureCostFunction::scoreTrajectory(Trajectory &traj) {
     {
       delta_angle = 0.0;
       next_cargo_angle = base_local_planner::normalize_angle(cargo_angle_ - traj.thetav_ * traj.time_delta_);
+      mode = 2;
     }
     else
     {
@@ -67,14 +73,21 @@ double CurvatureCostFunction::scoreTrajectory(Trajectory &traj) {
       double rear_x, rear_y;
       base_local_planner::calc_cargo_rear_position(px0, py0, cargo_global, this->cargo_length_, rear_x, rear_y);
       base_local_planner::calc_cargo_delta_angle(px0, py0, px1, py1, rear_x, rear_y, delta_angle);
-      next_cargo_angle = base_local_planner::normalize_angle(cargo_global + delta_angle - pth1);
+      //next_cargo_angle = base_local_planner::normalize_angle(cargo_global + delta_angle - pth1);
+      next_cargo_angle = cargo_angle_ + (3.0*traj.xv_ / 1.1 * sin(M_PI - cargo_angle_) - traj.thetav_) * traj.time_delta_;
+      //std::cerr << "mode 3: " << "cargo_angle: " << cargo_angle_
+      //                        << ", next_cargo_angle: " << next_cargo_angle << std::endl;
+      mode = 3;
     }
   }
 
   if (std::fabs(next_cargo_angle) < this->cargo_limit_angle_deg_ * M_PI / 180)
   {
-    if (std::fabs(cargo_angle_) < std::fabs(next_cargo_angle))
+    if (std::fabs(cargo_angle_) + 0.0 < std::fabs(next_cargo_angle))
     {
+      std::cerr << mode << ": " << "delta_angle: " << delta_angle <<
+    	                         ", cargo_angle: " << cargo_angle_ <<
+    	                         ", next_cargo_angle: " << next_cargo_angle << std::endl;
       return 0.0;
     }
     return -12;

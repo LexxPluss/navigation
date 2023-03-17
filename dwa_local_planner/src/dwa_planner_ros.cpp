@@ -400,6 +400,7 @@ namespace dwa_local_planner {
 
     if (goalLatchedStopRotateController_.isPositionReached(&planner_util_, current_pose_))
     {
+      //std::cerr << "dwa mode :: stop rotate" << std::endl;
       vel_cmd_mode_msg_.data = 1;
       vel_cmd_mode_marker_msg_.color.r = 1.0;
       vel_cmd_mode_marker_msg_.color.g = 0.0;
@@ -425,6 +426,7 @@ namespace dwa_local_planner {
     }
     else if (this->rotate_to_goal_)
     {
+      //std::cerr << "dwa mode :: rotate to closest waypoint" << std::endl;
       this->rotate_goal_time_ = ros::Time::now();
       vel_cmd_mode_msg_.data = 0;
       vel_cmd_mode_marker_msg_.color.r = 0.0;
@@ -495,6 +497,7 @@ namespace dwa_local_planner {
     }
     else
     {
+      //std::cerr << "dwa mode :: dwa" << std::endl;
       vel_cmd_mode_msg_.data = 2;
       vel_cmd_mode_marker_msg_.color.r = 0.0;
       vel_cmd_mode_marker_msg_.color.g = 0.0;
