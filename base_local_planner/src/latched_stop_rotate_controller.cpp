@@ -266,7 +266,6 @@ bool LatchedStopRotateController::computeVelocityCommandsStopRotate(geometry_msg
   double goal_th = tf2::getYaw(goal_pose.pose.orientation);
   double angle = base_local_planner::getGoalOrientationAngleDifference(global_pose, goal_th);
   if (fabs(angle) <= limits.yaw_goal_tolerance) {
-    std::cerr << "==== set velocity command to zero ====" << std::endl;
     //set the velocity command to zero
     cmd_vel.linear.x = 0.0;
     cmd_vel.linear.y = 0.0;
@@ -281,7 +280,6 @@ bool LatchedStopRotateController::computeVelocityCommandsStopRotate(geometry_msg
 
     //if we're not stopped yet... we want to stop... taking into account the acceleration limits of the robot
     if ( ! rotating_to_goal_ && !base_local_planner::stopped(base_odom, limits.theta_stopped_vel, limits.trans_stopped_vel)) {
-      std::cerr << "==== stopWithAccLimits ====" << std::endl;
       if ( ! stopWithAccLimits(
           global_pose,
           robot_vel,
@@ -296,7 +294,6 @@ bool LatchedStopRotateController::computeVelocityCommandsStopRotate(geometry_msg
     }
     //if we're stopped... then we want to rotate to goal
     else {
-      std::cerr << "==== rotateToGoal ====" << std::endl;
       //set this so that we know its OK to be moving
       rotating_to_goal_ = true;
       if (fabs(angle) <= limits.spin_turn_tolerance)
