@@ -69,10 +69,10 @@ InflationLayer::InflationLayer()
   inflation_access_ = new boost::recursive_mutex();
 }
 
-void InflationLayer::vel_callback(const geometry_msgs::Twist::ConstPtr& msg)
+void InflationLayer::diff_drive_debug_info_callback(const lexxauto_msgs::DiffDriveEffortControllerDebug::ConstPtr& msg)
 {
   boost::unique_lock < boost::recursive_mutex > lock(*inflation_access_);
-  vel_msg = *msg;
+  diff_drive_debug_info_msg = *msg;
 }
 
 void InflationLayer::onInitialize()
@@ -80,7 +80,8 @@ void InflationLayer::onInitialize()
   {
     boost::unique_lock < boost::recursive_mutex > lock(*inflation_access_);
     ros::NodeHandle nh("~/" + name_), g_nh;
-    vel_sub = g_nh.subscribe<geometry_msgs::Twist>("/robot1/cmd_vel", 1, &InflationLayer::vel_callback, this);
+    diff_drive_debug_info_sub = g_nh.subscribe<lexxauto_msgs::DiffDriveEffortControllerDebug>
+      ("/robot1/diff_drive_effort_controller/debug_info", 1, &InflationLayer::diff_drive_debug_info_callback, this);
     current_ = true;
     if (seen_)
       delete[] seen_;
@@ -181,7 +182,7 @@ void InflationLayer::onFootprintChanged()
 double InflationLayer::calculate_variable_inflation_radius()
 {
   double variable_inflation_radius = min_inflation_radius_;
-  const double measured_velocity = vel_msg.linear.x;
+  const double measured_velocity = diff_drive_debug_info_msg.measured_twist_filtered.linear.x;
 
   if (std::abs(measured_velocity) < min_inflation_vel_)
   {

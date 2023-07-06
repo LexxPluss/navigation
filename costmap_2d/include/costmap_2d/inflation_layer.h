@@ -44,7 +44,7 @@
 #include <costmap_2d/InflationPluginConfig.h>
 #include <dynamic_reconfigure/server.h>
 #include <boost/thread.hpp>
-#include <geometry_msgs/Twist.h>
+#include <lexxauto_msgs/DiffDriveEffortControllerDebug.h>
 
 namespace costmap_2d
 {
@@ -87,9 +87,9 @@ public:
         delete[] seen_;
   }
 
-  ros::Subscriber vel_sub;
-  geometry_msgs::Twist vel_msg;
-  void vel_callback(const geometry_msgs::Twist::ConstPtr& msg);
+  ros::Subscriber diff_drive_debug_info_sub;
+  lexxauto_msgs::DiffDriveEffortControllerDebug diff_drive_debug_info_msg;
+  void diff_drive_debug_info_callback(const lexxauto_msgs::DiffDriveEffortControllerDebug::ConstPtr& msg);
 
   virtual void onInitialize();
   virtual void updateBounds(double robot_x, double robot_y, double robot_yaw, double* min_x, double* min_y,
