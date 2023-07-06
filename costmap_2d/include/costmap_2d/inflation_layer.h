@@ -139,6 +139,11 @@ protected:
   double inscribed_radius_;
   double weight_;
   bool inflate_unknown_;
+  bool use_variable_inflation_ = true;
+  double min_inflation_radius_ = 0.1;
+  double max_inflation_radius_ = 0.5;
+  double min_inflation_vel_ = 0.2;
+  double max_inflation_vel_ = 0.6;
 
 private:
   /**
@@ -174,6 +179,8 @@ private:
   void computeCaches();
   void deleteKernels();
   void inflate_area(int min_i, int min_j, int max_i, int max_j, unsigned char* master_grid);
+
+  double calculate_variable_inflation_radius();
 
   unsigned int cellDistance(double world_dist)
   {

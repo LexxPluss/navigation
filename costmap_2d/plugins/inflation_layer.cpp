@@ -178,16 +178,41 @@ void InflationLayer::onFootprintChanged()
             layered_costmap_->getFootprint().size(), inscribed_radius_, inflation_radius_);
 }
 
+double InflationLayer::calculate_variable_inflation_radius()
+{
+  double variable_inflation_radius = min_inflation_radius_;
+  const double measured_velocity = vel_msg.linear.x;
+
+  if (std::abs(measured_velocity) < min_inflation_vel_)
+  {
+    variable_inflation_radius = min_inflation_radius_;
+    ROS_INFO("inflation radius is min (%f) since velocity is low enough.", variable_inflation_radius);
+  }
+  else if (std::abs(measured_velocity) > max_inflation_vel_)
+  {
+    variable_inflation_radius = max_inflation_radius_;
+    ROS_INFO("inflation radius is max (%f) since velocity is large enough.", variable_inflation_radius);
+  }
+  else
+  {
+    variable_inflation_radius = (max_inflation_radius_ - min_inflation_radius_) /
+                                (max_inflation_vel_ - min_inflation_vel_) *
+                                std::abs(measured_velocity);
+    ROS_INFO("calculated inflation radius is %f.", variable_inflation_radius);
+  }
+
+  return variable_inflation_radius;
+}
+
 void InflationLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, int min_j, int max_i, int max_j)
 {
   boost::unique_lock < boost::recursive_mutex > lock(*inflation_access_);
 
-  double radius;
-  if (std::abs(vel_msg.linear.x) < 0.1) radius = 0.1;
-  else if (std::abs(vel_msg.linear.x) > 1.0) radius = 1.0;
-  else radius = vel_msg.linear.x;
-
-  setInflationParameters(radius, weight_);
+  if (use_variable_inflation_)
+  {
+    double variable_inflation_radius = calculate_variable_inflation_radius();
+    setInflationParameters(variable_inflation_radius, weight_);
+  }
 
   if (!enabled_ || (cell_inflation_radius_ == 0))
     return;
