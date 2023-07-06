@@ -109,6 +109,20 @@ void InflationLayer::onInitialize()
 void InflationLayer::reconfigureCB(costmap_2d::InflationPluginConfig &config, uint32_t level)
 {
   setInflationParameters(config.inflation_radius, config.cost_scaling_factor);
+  std::cerr << "inflation radius: " << config.inflation_radius << std::endl;
+  std::cerr << "cost scaling factor: " << config.cost_scaling_factor << std::endl;
+  std::cerr << "use_variable_inflation: " << config.use_variable_inflation << std::endl;
+  std::cerr << "min_inflation_radius: " << config.min_inflation_radius << std::endl;
+  std::cerr << "max_inflation_radius: " << config.max_inflation_radius << std::endl;
+  std::cerr << "min_inflation_vel: " << config.min_inflation_vel << std::endl;
+  std::cerr << "max_inflation_vel: " << config.max_inflation_vel << std::endl;
+
+  boost::unique_lock < boost::recursive_mutex > lock(*inflation_access_);
+  use_variable_inflation_ = config.use_variable_inflation;
+  min_inflation_radius_ = config.min_inflation_radius;
+  max_inflation_radius_ = config.max_inflation_radius;
+  min_inflation_vel_ = config.min_inflation_vel;
+  max_inflation_vel_ = config.min_inflation_vel;
 
   if (enabled_ != config.enabled || inflate_unknown_ != config.inflate_unknown) {
     enabled_ = config.enabled;
