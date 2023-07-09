@@ -67,18 +67,20 @@ InflationLayer::InflationLayer()
   , last_max_y_(std::numeric_limits<float>::max())
 {
   inflation_access_ = new boost::recursive_mutex();
+  velocity_access_ = new boost::recursive_mutex();
+  config_access_ = new boost::recursive_mutex();
 }
 
 void InflationLayer::diff_drive_debug_info_callback(const lexxauto_msgs::DiffDriveEffortControllerDebug::ConstPtr& msg)
 {
-  boost::unique_lock < boost::recursive_mutex > lock(*inflation_access_);
+  boost::unique_lock < boost::recursive_mutex > lock_v(*velocity_access_);
   diff_drive_debug_info_msg = *msg;
 }
 
 void InflationLayer::onInitialize()
 {
   {
-    boost::unique_lock < boost::recursive_mutex > lock(*inflation_access_);
+    boost::unique_lock < boost::recursive_mutex > lock_i(*inflation_access_);
     ros::NodeHandle nh("~/" + name_), g_nh;
     diff_drive_debug_info_sub = g_nh.subscribe<lexxauto_msgs::DiffDriveEffortControllerDebug>
       ("/robot1/diff_drive_effort_controller/debug_info", 1, &InflationLayer::diff_drive_debug_info_callback, this);
@@ -109,15 +111,7 @@ void InflationLayer::onInitialize()
 void InflationLayer::reconfigureCB(costmap_2d::InflationPluginConfig &config, uint32_t level)
 {
   setInflationParameters(config.inflation_radius, config.cost_scaling_factor);
-  std::cerr << "inflation radius: " << config.inflation_radius << std::endl;
-  std::cerr << "cost scaling factor: " << config.cost_scaling_factor << std::endl;
-  std::cerr << "use_variable_inflation: " << config.use_variable_inflation << std::endl;
-  std::cerr << "min_inflation_radius: " << config.min_inflation_radius << std::endl;
-  std::cerr << "max_inflation_radius: " << config.max_inflation_radius << std::endl;
-  std::cerr << "min_inflation_vel: " << config.min_inflation_vel << std::endl;
-  std::cerr << "max_inflation_vel: " << config.max_inflation_vel << std::endl;
-
-  boost::unique_lock < boost::recursive_mutex > lock(*inflation_access_);
+  boost::unique_lock < boost::recursive_mutex > lock_c(*config_access_);
   use_variable_inflation_ = config.use_variable_inflation;
   min_inflation_radius_ = config.min_inflation_radius;
   max_inflation_radius_ = config.max_inflation_radius;
@@ -133,7 +127,7 @@ void InflationLayer::reconfigureCB(costmap_2d::InflationPluginConfig &config, ui
 
 void InflationLayer::matchSize()
 {
-  boost::unique_lock < boost::recursive_mutex > lock(*inflation_access_);
+  boost::unique_lock < boost::recursive_mutex > lock_i(*inflation_access_);
   costmap_2d::Costmap2D* costmap = layered_costmap_->getCostmap();
   resolution_ = costmap->getResolution();
   cell_inflation_radius_ = cellDistance(inflation_radius_);
@@ -195,6 +189,8 @@ void InflationLayer::onFootprintChanged()
 
 double InflationLayer::calculate_variable_inflation_radius()
 {
+  boost::unique_lock < boost::recursive_mutex > lock_v(*velocity_access_);
+  boost::unique_lock < boost::recursive_mutex > lock_c(*config_access_);
   double variable_inflation_radius = min_inflation_radius_;
   const double measured_velocity = diff_drive_debug_info_msg.measured_twist_filtered.linear.x;
 
@@ -221,7 +217,8 @@ double InflationLayer::calculate_variable_inflation_radius()
 
 void InflationLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, int min_j, int max_i, int max_j)
 {
-  boost::unique_lock < boost::recursive_mutex > lock(*inflation_access_);
+  boost::unique_lock < boost::recursive_mutex > lock_i(*inflation_access_);
+  boost::unique_lock < boost::recursive_mutex > lock_c(*config_access_);
 
   if (use_variable_inflation_)
   {
@@ -425,7 +422,7 @@ void InflationLayer::setInflationParameters(double inflation_radius, double cost
   {
     // Lock here so that reconfiguring the inflation radius doesn't cause segfaults
     // when accessing the cached arrays
-    boost::unique_lock < boost::recursive_mutex > lock(*inflation_access_);
+    boost::unique_lock < boost::recursive_mutex > lock_i(*inflation_access_);
 
     inflation_radius_ = inflation_radius;
     cell_inflation_radius_ = cellDistance(inflation_radius_);

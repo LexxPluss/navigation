@@ -133,6 +133,8 @@ public:
 protected:
   virtual void onFootprintChanged();
   boost::recursive_mutex* inflation_access_;
+  boost::recursive_mutex* velocity_access_;
+  boost::recursive_mutex* config_access_;
 
   double resolution_;
   double inflation_radius_;
