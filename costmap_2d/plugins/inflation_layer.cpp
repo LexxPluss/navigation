@@ -206,9 +206,8 @@ double InflationLayer::calculate_variable_inflation_radius()
   }
   else
   {
-    variable_inflation_radius = (max_inflation_radius_ - min_inflation_radius_) /
-                                (max_inflation_vel_ - min_inflation_vel_) *
-                                std::abs(measured_velocity);
+    double k = (max_inflation_radius_ - min_inflation_radius_) / (max_inflation_vel_ - min_inflation_vel_);
+    variable_inflation_radius = k * (std::abs(measured_velocity) - min_inflation_vel_) + min_inflation_radius_;
     ROS_INFO("calculated inflation radius is %f.", variable_inflation_radius);
   }
 
