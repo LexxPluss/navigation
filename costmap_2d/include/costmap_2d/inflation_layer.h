@@ -139,7 +139,7 @@ protected:
   double inscribed_radius_;
   double weight_;
   bool inflate_unknown_;
-  bool use_variable_inflation_ = true;
+  bool use_variable_inflation_ = false;
   double min_inflation_radius_ = 0.1;
   double max_inflation_radius_ = 0.5;
   double min_inflation_vel_ = 0.2;
