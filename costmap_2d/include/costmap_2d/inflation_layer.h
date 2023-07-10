@@ -127,14 +127,24 @@ public:
    * @brief Change the values of the inflation radius parameters
    * @param inflation_radius The new inflation radius
    * @param cost_scaling_factor The new weight
+   * @param use_variable_inflation Use variable inflation or not
+   * @param min_inflation_radius The minimum inflation radius
+   * @param max_inflation_radius The maximum inflation radius
+   * @param min_inflation_vel The minimum velocity to activate variable inflation
+   * @param max_inflation_vel The maximum velocity to activate variable inflation
    */
-  void setInflationParameters(double inflation_radius, double cost_scaling_factor);
+  void setInflationParameters(double inflation_radius,
+                              double cost_scaling_factor,
+                              bool use_variable_inflation,
+                              double min_inflation_radius,
+                              double max_inflation_radius,
+                              double min_inflation_vel,
+                              double max_inflation_vel);
 
 protected:
   virtual void onFootprintChanged();
   boost::recursive_mutex* inflation_access_;
   boost::recursive_mutex* velocity_access_;
-  boost::recursive_mutex* config_access_;
 
   double resolution_;
   double inflation_radius_;

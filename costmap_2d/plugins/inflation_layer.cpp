@@ -68,7 +68,6 @@ InflationLayer::InflationLayer()
 {
   inflation_access_ = new boost::recursive_mutex();
   velocity_access_ = new boost::recursive_mutex();
-  config_access_ = new boost::recursive_mutex();
 }
 
 void InflationLayer::diff_drive_debug_info_callback(const lexxauto_msgs::DiffDriveEffortControllerDebug::ConstPtr& msg)
@@ -110,13 +109,9 @@ void InflationLayer::onInitialize()
 
 void InflationLayer::reconfigureCB(costmap_2d::InflationPluginConfig &config, uint32_t level)
 {
-  setInflationParameters(config.inflation_radius, config.cost_scaling_factor);
-  boost::unique_lock < boost::recursive_mutex > lock_c(*config_access_);
-  use_variable_inflation_ = config.use_variable_inflation;
-  min_inflation_radius_ = config.min_inflation_radius;
-  max_inflation_radius_ = config.max_inflation_radius;
-  min_inflation_vel_ = config.min_inflation_vel;
-  max_inflation_vel_ = config.max_inflation_vel;
+  setInflationParameters(config.inflation_radius, config.cost_scaling_factor, config.use_variable_inflation,
+                         config.min_inflation_radius, config.max_inflation_radius,
+                         config.min_inflation_vel, config.max_inflation_vel);
 
   if (enabled_ != config.enabled || inflate_unknown_ != config.inflate_unknown) {
     enabled_ = config.enabled;
@@ -190,7 +185,6 @@ void InflationLayer::onFootprintChanged()
 double InflationLayer::calculate_variable_inflation_radius()
 {
   boost::unique_lock < boost::recursive_mutex > lock_v(*velocity_access_);
-  boost::unique_lock < boost::recursive_mutex > lock_c(*config_access_);
   double variable_inflation_radius = min_inflation_radius_;
   const double measured_velocity = diff_drive_debug_info_msg.measured_twist_filtered.linear.x;
 
@@ -217,12 +211,13 @@ double InflationLayer::calculate_variable_inflation_radius()
 void InflationLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, int min_j, int max_i, int max_j)
 {
   boost::unique_lock < boost::recursive_mutex > lock_i(*inflation_access_);
-  boost::unique_lock < boost::recursive_mutex > lock_c(*config_access_);
 
   if (use_variable_inflation_)
   {
     double variable_inflation_radius = calculate_variable_inflation_radius();
-    setInflationParameters(variable_inflation_radius, weight_);
+    setInflationParameters(variable_inflation_radius, weight_, use_variable_inflation_,
+                           min_inflation_radius_, max_inflation_radius_,
+                           min_inflation_vel_, max_inflation_vel_);
   }
 
   if (!enabled_ || (cell_inflation_radius_ == 0))
@@ -415,9 +410,17 @@ void InflationLayer::deleteKernels()
   }
 }
 
-void InflationLayer::setInflationParameters(double inflation_radius, double cost_scaling_factor)
+void InflationLayer::setInflationParameters(double inflation_radius,
+                                            double cost_scaling_factor,
+                                            bool use_variable_inflation,
+                                            double min_inflation_radius,
+                                            double max_inflation_radius,
+                                            double min_inflation_vel,
+                                            double max_inflation_vel)
 {
-  if (weight_ != cost_scaling_factor || inflation_radius_ != inflation_radius)
+  if (weight_ != cost_scaling_factor || inflation_radius_ != inflation_radius || use_variable_inflation_ != use_variable_inflation ||
+      min_inflation_radius_ != min_inflation_radius || max_inflation_radius_ != max_inflation_radius ||
+      min_inflation_vel_ != min_inflation_vel || max_inflation_vel_ != max_inflation_vel)
   {
     // Lock here so that reconfiguring the inflation radius doesn't cause segfaults
     // when accessing the cached arrays
@@ -427,6 +430,13 @@ void InflationLayer::setInflationParameters(double inflation_radius, double cost
     cell_inflation_radius_ = cellDistance(inflation_radius_);
     weight_ = cost_scaling_factor;
     need_reinflation_ = true;
+
+    use_variable_inflation_ = use_variable_inflation;
+    min_inflation_radius_ = min_inflation_radius;
+    max_inflation_radius_ = max_inflation_radius;
+    min_inflation_vel_ = min_inflation_vel;
+    max_inflation_vel_ = max_inflation_vel;
+
     computeCaches();
   }
 }
