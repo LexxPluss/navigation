@@ -83,7 +83,7 @@ void InflationLayer::onInitialize()
     boost::unique_lock < boost::recursive_mutex > lock_i(*inflation_access_);
     ros::NodeHandle nh("~/" + name_), g_nh;
     diff_drive_debug_info_sub = g_nh.subscribe<lexxauto_msgs::DiffDriveEffortControllerDebug>
-      ("/robot1/diff_drive_effort_controller/debug_info", 1, &InflationLayer::diff_drive_debug_info_callback, this);
+      ("diff_drive_effort_controller/debug_info", 1, &InflationLayer::diff_drive_debug_info_callback, this);
     current_ = true;
     if (seen_)
       delete[] seen_;
@@ -116,7 +116,7 @@ void InflationLayer::reconfigureCB(costmap_2d::InflationPluginConfig &config, ui
   min_inflation_radius_ = config.min_inflation_radius;
   max_inflation_radius_ = config.max_inflation_radius;
   min_inflation_vel_ = config.min_inflation_vel;
-  max_inflation_vel_ = config.min_inflation_vel;
+  max_inflation_vel_ = config.max_inflation_vel;
 
   if (enabled_ != config.enabled || inflate_unknown_ != config.inflate_unknown) {
     enabled_ = config.enabled;
