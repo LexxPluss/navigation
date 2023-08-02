@@ -71,7 +71,7 @@ VariableInflationLayer::VariableInflationLayer()
 
   ros::NodeHandle nh("~/" + name_), g_nh;
   diff_drive_debug_info_sub = g_nh.subscribe<lexxauto_msgs::DiffDriveEffortControllerDebug>
-    ("/robot1/diff_drive_effort_controller/debug_info", 1, &VariableInflationLayer::diff_drive_debug_info_callback, this);
+    ("diff_drive_effort_controller/debug_info", 1, &VariableInflationLayer::diff_drive_debug_info_callback, this);
 }
 
 void VariableInflationLayer::diff_drive_debug_info_callback(const lexxauto_msgs::DiffDriveEffortControllerDebug::ConstPtr& msg)
@@ -217,7 +217,6 @@ void VariableInflationLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int
   boost::unique_lock < boost::recursive_mutex > lock(*inflation_access_);
 
   double variable_inflation_radius = calculate_variable_inflation_radius();
-  std::cerr << "variable_inflation_radius: " << variable_inflation_radius << std::endl;
   setInflationParameters(variable_inflation_radius, weight_,
                          min_inflation_radius_, max_inflation_radius_,
                          min_inflation_vel_, max_inflation_vel_);
@@ -436,10 +435,6 @@ void VariableInflationLayer::setInflationParameters(double inflation_radius,
     max_inflation_radius_ = max_inflation_radius;
     min_inflation_vel_ = min_inflation_vel;
     max_inflation_vel_ = max_inflation_vel;
-    std::cerr << "min_inflation_radius_: " << min_inflation_radius_ << std::endl;
-    std::cerr << "max_inflation_radius_: " << max_inflation_radius_ << std::endl;
-    std::cerr << "min_inflation_vel_: " << min_inflation_vel_ << std::endl;
-    std::cerr << "max_inflation_vel_: " << max_inflation_vel_ << std::endl;
 
     computeCaches();
   }
