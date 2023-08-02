@@ -127,7 +127,6 @@ public:
    * @brief Change the values of the inflation radius parameters
    * @param inflation_radius The new inflation radius
    * @param cost_scaling_factor The new weight
-   * @param use_variable_inflation Use variable inflation or not
    * @param min_inflation_radius The minimum inflation radius
    * @param max_inflation_radius The maximum inflation radius
    * @param min_inflation_vel The minimum velocity to activate variable inflation
@@ -135,7 +134,6 @@ public:
    */
   void setInflationParameters(double inflation_radius,
                               double cost_scaling_factor,
-                              bool use_variable_inflation,
                               double min_inflation_radius,
                               double max_inflation_radius,
                               double min_inflation_vel,
@@ -151,7 +149,6 @@ protected:
   double inscribed_radius_;
   double weight_;
   bool inflate_unknown_;
-  bool use_variable_inflation_ = false;
   double min_inflation_radius_ = 0.1;
   double max_inflation_radius_ = 0.5;
   double min_inflation_vel_ = 0.2;
