@@ -92,7 +92,7 @@ void VariableInflationLayer::onInitialize()
     need_reinflation_ = false;
 
     dynamic_reconfigure::Server<costmap_2d::VariableInflationPluginConfig>::CallbackType cb = boost::bind(
-        &VariableInflationLayer::reconfigureCB, this, _1, _2);
+      &VariableInflationLayer::reconfigureCB, this, _1, _2);
 
     if (dsrv_ != NULL){
       dsrv_->clearCallback();
@@ -137,7 +137,7 @@ void VariableInflationLayer::matchSize()
 }
 
 void VariableInflationLayer::updateBounds(double robot_x, double robot_y, double robot_yaw, double* min_x,
-                                           double* min_y, double* max_x, double* max_y)
+                                          double* min_y, double* max_x, double* max_y)
 {
   if (need_reinflation_)
   {
@@ -219,6 +219,7 @@ void VariableInflationLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int
   if (use_variable_inflation_)
   {
     double variable_inflation_radius = calculate_variable_inflation_radius();
+    std::cerr << "variable_inflation_radius: " << variable_inflation_radius << std::endl;
     setInflationParameters(variable_inflation_radius, weight_, use_variable_inflation_,
                            min_inflation_radius_, max_inflation_radius_,
                            min_inflation_vel_, max_inflation_vel_);
@@ -415,12 +416,12 @@ void VariableInflationLayer::deleteKernels()
 }
 
 void VariableInflationLayer::setInflationParameters(double inflation_radius,
-                                            double cost_scaling_factor,
-                                            bool use_variable_inflation,
-                                            double min_inflation_radius,
-                                            double max_inflation_radius,
-                                            double min_inflation_vel,
-                                            double max_inflation_vel)
+                                                    double cost_scaling_factor,
+                                                    bool use_variable_inflation,
+                                                    double min_inflation_radius,
+                                                    double max_inflation_radius,
+                                                    double min_inflation_vel,
+                                                    double max_inflation_vel)
 {
   if (weight_ != cost_scaling_factor || inflation_radius_ != inflation_radius || use_variable_inflation_ != use_variable_inflation ||
       min_inflation_radius_ != min_inflation_radius || max_inflation_radius_ != max_inflation_radius ||
@@ -440,6 +441,10 @@ void VariableInflationLayer::setInflationParameters(double inflation_radius,
     max_inflation_radius_ = max_inflation_radius;
     min_inflation_vel_ = min_inflation_vel;
     max_inflation_vel_ = max_inflation_vel;
+    std::cerr << "min_inflation_radius_: " << min_inflation_radius_ << std::endl;
+    std::cerr << "max_inflation_radius_: " << max_inflation_radius_ << std::endl;
+    std::cerr << "min_inflation_vel_: " << min_inflation_vel_ << std::endl;
+    std::cerr << "max_inflation_vel_: " << max_inflation_vel_ << std::endl;
 
     computeCaches();
   }
