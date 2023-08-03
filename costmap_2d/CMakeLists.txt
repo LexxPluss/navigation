@@ -173,8 +173,10 @@ if(CATKIN_ENABLE_TESTING)
   add_dependencies(tests inflation_tests)
   target_link_libraries(inflation_tests costmap_2d layers ${GTEST_LIBRARIES})
 
-  add_rostest_gtest(inflation_tests_unit test/inflation_tests_unit.launch test/inflation_tests_unit.cpp)
-  target_link_libraries(inflation_tests_unit layers ${catkin_LIBRARIES})
+  add_rostest_gtest(variable_inflation_tests_unit
+                    test/variable_inflation_tests_unit.launch
+                    test/variable_inflation_tests_unit.cpp)
+  target_link_libraries(variable_inflation_tests_unit layers ${catkin_LIBRARIES})
 
   catkin_download_test_data(${PROJECT_NAME}_simple_driving_test_indexed.bag
     http://download.ros.org/data/costmap_2d/simple_driving_test_indexed.bag
