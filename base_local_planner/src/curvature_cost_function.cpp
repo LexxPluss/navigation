@@ -44,11 +44,14 @@ double CurvatureCostFunction::scoreTrajectory(Trajectory &traj) {
     return 0.0;
   }
 
+  // cargo_angle_ = normalize_angle(cargo_angle_);
   double delta_angle, next_cargo_angle;
   if (traj.getPointsSize() <= 1)
   {
-    delta_angle = traj.thetav_ * traj.time_delta_;
-    next_cargo_angle = base_local_planner::normalize_angle(cargo_angle_ + traj.thetav_);
+    // delta_angle = traj.thetav_ * traj.time_delta_;
+    // next_cargo_angle = base_local_planner::normalize_angle(cargo_angle_ + traj.thetav_);
+    delta_angle = 0.0;
+    next_cargo_angle = base_local_planner::normalize_angle(cargo_angle_ - traj.thetav_ * traj.time_delta_);
   }
   else
   {
@@ -80,7 +83,7 @@ double CurvatureCostFunction::scoreTrajectory(Trajectory &traj) {
     return -12;
   }
 
-  if (delta_angle == 0.0)
+  if (delta_angle == 0.0) // || std::fabs(traj.xv_) < 0.01)
   {
     return 0.0;
   }

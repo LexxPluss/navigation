@@ -168,7 +168,7 @@ namespace dwa_local_planner {
     double cargo_limit_angle_deg, curvature_radius, not_move_threshold;
     private_nh.param("cargo_limit_angle_deg", cargo_limit_angle_deg, 90.0);
     private_nh.param("curvature_radius", curvature_radius, 0.9);
-    private_nh.param("not_move_threshold", not_move_threshold, 0.0);
+    private_nh.param("not_move_threshold", not_move_threshold, 0.01);
     curvature_costs_.setCargoLimitAngleDeg(cargo_limit_angle_deg);
     curvature_costs_.setCurvatureRadius(curvature_radius);
     curvature_costs_.setNotMoveThreshold(not_move_threshold);
