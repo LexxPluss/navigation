@@ -48,7 +48,6 @@ generate_messages(
         std_msgs
         geometry_msgs
         map_msgs
-        lexxauto_msgs
 )
 
 # dynamic reconfigure
