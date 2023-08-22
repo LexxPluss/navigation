@@ -22,6 +22,7 @@ find_package(catkin REQUIRED
             tf2_sensor_msgs
             visualization_msgs
             voxel_grid
+            lexxauto_msgs
         )
 
 find_package(Eigen3 REQUIRED)
@@ -47,6 +48,7 @@ generate_messages(
         std_msgs
         geometry_msgs
         map_msgs
+        lexxauto_msgs
 )
 
 # dynamic reconfigure
@@ -79,6 +81,7 @@ catkin_package(
         tf2_ros
         visualization_msgs
         voxel_grid
+        lexxauto_msgs
     DEPENDS
         EIGEN3
         Boost
