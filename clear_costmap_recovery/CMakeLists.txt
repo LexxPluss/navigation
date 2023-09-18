@@ -9,6 +9,7 @@ find_package(catkin REQUIRED
             pluginlib
             roscpp
             tf2_ros
+            lexxauto_msgs
         )
 
 find_package(Eigen3 REQUIRED)
@@ -29,6 +30,7 @@ catkin_package(
         pluginlib
         roscpp
         tf2_ros
+        lexxauto_msgs
 )
 
 add_library(clear_costmap_recovery src/clear_costmap_recovery.cpp)

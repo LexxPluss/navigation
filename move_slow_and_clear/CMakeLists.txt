@@ -9,6 +9,7 @@ find_package(catkin REQUIRED
         nav_core
         pluginlib
         roscpp
+        lexxauto_msgs
         )
 
 
