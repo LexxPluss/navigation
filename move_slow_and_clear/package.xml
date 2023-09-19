@@ -25,11 +25,10 @@
     <depend>nav_core</depend>
     <depend>pluginlib</depend>
     <depend>roscpp</depend>
+    <depend>lexxauto_msgs</depend>
 
     <export>
         <nav_core plugin="${prefix}/recovery_plugin.xml" />
     </export>
 
 </package>
-
-
