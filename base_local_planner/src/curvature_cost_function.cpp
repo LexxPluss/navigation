@@ -48,7 +48,7 @@ double CurvatureCostFunction::scoreTrajectory(Trajectory &traj) {
   if (traj.getPointsSize() <= 1)
   {
     delta_angle = traj.thetav_ * traj.time_delta_;
-    next_cargo_angle = base_local_planner::normalize_angle(cargo_angle_ + traj.thetav_);
+    next_cargo_angle = base_local_planner::normalize_angle(cargo_angle_ - traj.thetav_ * traj.time_delta_);
   }
   else
   {
