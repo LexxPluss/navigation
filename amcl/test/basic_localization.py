@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-
-from __future__ import print_function
+#!/usr/bin/env python3
 
 import sys
 import time
@@ -11,18 +9,21 @@ import rospy
 import rostest
 
 import tf2_py as tf2
-import tf2_ros
+from tf2_ros import (
+    Buffer,
+    TransformListener
+)
 import PyKDL
 from std_srvs.srv import Empty
-
+from geometry_msgs.msg import Transform
 
 class TestBasicLocalization(unittest.TestCase):
     def setUp(self):
-        self.tf = None
-        self.target_x = None
-        self.target_y = None
-        self.target_a = None
-        self.tfBuffer = None
+        self.tf: Transform = None
+        self.target_x: float = None
+        self.target_y: float = None
+        self.target_a: float = None
+        self.tfBuffer: Buffer = None
         self.maxConnectivityExceptions = 5
         self.connectivityExceptions = 0
 
@@ -61,7 +62,7 @@ class TestBasicLocalization(unittest.TestCase):
             angle += 2*pi
         return fmod(angle, 2*pi) - pi
 
-    def compute_angle(self):
+    def compute_angle(self) -> float:
         rot = self.tf.rotation
         a_curr = PyKDL.Rotation.Quaternion(rot.x, rot.y, rot.z, rot.w).GetRPY()[2]
         a_diff = self.wrap_angle(a_curr - self.target_a)
@@ -88,8 +89,8 @@ class TestBasicLocalization(unittest.TestCase):
             global_localization()
 
         start_time = rospy.rostime.get_time()
-        self.tfBuffer = tf2_ros.Buffer()
-        listener = tf2_ros.TransformListener(self.tfBuffer)
+        self.tfBuffer = Buffer()
+        listener = TransformListener(self.tfBuffer)
 
         while (rospy.rostime.get_time() - start_time) < target_time:
             print('Waiting for end time %.6f (current: %.6f)' % (target_time, (rospy.rostime.get_time() - start_time)))
