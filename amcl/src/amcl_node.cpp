@@ -53,6 +53,7 @@
 #include "nav_msgs/GetMap.h"
 #include "nav_msgs/SetMap.h"
 #include "std_srvs/Empty.h"
+#include "std_msgs/Float32.h"
 
 // For transform support
 #include "tf2/LinearMath/Transform.h"
@@ -264,6 +265,9 @@ class AmclNode
     ros::Publisher debug_pose_pub_;
     ros::Publisher particlecloud_pub_;
     ros::Publisher debug_particlecloud_pub_;
+    ros::Publisher odom_amcl_diff_x_pub_;
+    ros::Publisher odom_amcl_diff_y_pub_;
+    ros::Publisher odom_amcl_diff_yaw_pub_;
     ros::ServiceServer global_loc_srv_;
     ros::ServiceServer nomotion_update_srv_; //to let amcl update samples without requiring motion
     ros::ServiceServer set_map_srv_;
@@ -490,6 +494,9 @@ AmclNode::AmclNode() :
   debug_pose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("debug_amcl_pose", 2, true);
   particlecloud_pub_ = nh_.advertise<geometry_msgs::PoseArray>("particlecloud", 2, true);
   debug_particlecloud_pub_ = nh_.advertise<geometry_msgs::PoseArray>("particlecloud", 2, true);
+  odom_amcl_diff_x_pub_ = nh_.advertise<std_msgs::Float32>("odom_amcl_diff_x", 2, true);
+  odom_amcl_diff_y_pub_ = nh_.advertise<std_msgs::Float32>("odom_amcl_diff_y", 2, true);
+  odom_amcl_diff_yaw_pub_ = nh_.advertise<std_msgs::Float32>("odom_amcl_diff_yaw", 2, true);
   global_loc_srv_ = nh_.advertiseService("global_localization", 
 					 &AmclNode::globalLocalizationCallback,
                                          this);
@@ -1082,7 +1089,7 @@ AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time
 
   ros::Duration time_diff = now_time - tf_past.header.stamp;
   std::cerr << "Time diff: " << time_diff.toSec() << std::endl;
-  ROS_DEBUG("Time diff: %.3f", time_diff.toSec());
+  ROS_DEBUG("getOdomMovement time diff: %.3f", time_diff.toSec());
   return move;
 }
 
@@ -1112,8 +1119,7 @@ AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_po
   move.v[2] = angle_diff(now_pose.v[2], tf2::getYaw(tf_past.transform.rotation));
 
   ros::Duration time_diff = now_time - tf_past.header.stamp;
-  std::cerr << "Time diff: " << time_diff.toSec() << std::endl;
-  ROS_DEBUG("Time diff: %.3f", time_diff.toSec());
+  ROS_DEBUG("getAmclMovement time diff: %.3f", time_diff.toSec());
   return move;
 }
 
@@ -1124,7 +1130,7 @@ AmclNode::broadcastAmclPose(const geometry_msgs::PoseWithCovarianceStamped& p)
   geometry_msgs::TransformStamped transform;
   transform.header = p.header;
   transform.header.frame_id = global_frame_id_;
-  transform.child_frame_id = base_frame_id_;
+  transform.child_frame_id = "amcl_pose";
   transform.transform.translation.x = p.pose.pose.position.x;
   transform.transform.translation.y = p.pose.pose.position.y;
   transform.transform.translation.z = p.pose.pose.position.z;
@@ -1550,17 +1556,29 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       bool acceptable_difference = std::fabs(dx) < x_thre &&
                                    std::fabs(dy) < y_thre &&
                                    std::fabs(dyaw) < yaw_thre;
-      if (acceptable_difference)
-      {
-        pose_pub_.publish(p);
-        last_published_pose = p;
-        broadcastAmclPose(p);
-      }
-      else
-      {
-        // pub latest reliable amcl + odom pose
-      }
-      debug_pose_pub_.publish(p);
+
+      std_msgs::Float32 dx_msg, dy_msg, dyaw_msg;
+      dx_msg.data = dx;
+      dy_msg.data = dy;
+      dyaw_msg.data = dyaw;
+      odom_amcl_diff_x_pub_.publish(dx_msg);
+      odom_amcl_diff_y_pub_.publish(dy_msg);
+      odom_amcl_diff_yaw_pub_.publish(dyaw_msg);
+
+      pose_pub_.publish(p);
+      broadcastAmclPose(p);
+
+      // if (acceptable_difference)
+      // {
+      //   pose_pub_.publish(p);
+      //   last_published_pose = p;
+      //   broadcastAmclPose(p);
+      // }
+      // else
+      // {
+      //   // pub latest reliable amcl + odom pose
+      // }
+      // debug_pose_pub_.publish(p);
 
       ROS_DEBUG("New pose: %6.3f %6.3f %6.3f",
                hyps[max_weight_hyp].pf_pose_mean.v[0],
