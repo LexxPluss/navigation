@@ -192,6 +192,7 @@ class AmclNode
     //parameter for which base to use
     std::string base_frame_id_;
     std::string global_frame_id_;
+    std::string amcl_base_frame_id_;
 
     bool use_map_topic_;
     bool first_map_only_;
@@ -482,6 +483,7 @@ AmclNode::AmclNode() :
   odom_frame_id_ = stripSlash(odom_frame_id_);
   base_frame_id_ = stripSlash(base_frame_id_);
   global_frame_id_ = stripSlash(global_frame_id_);
+  amcl_base_frame_id_ = "amcl_base_link";
 
   updatePoseFromServer();
 
@@ -1074,6 +1076,7 @@ AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time
   std::string parent_frame = odom_frame_id_;
   std::string child_frame = base_frame_id_;
   geometry_msgs::TransformStamped tf_past;
+  pf_vector_t move = pf_vector_zero();
   try
   {
     tf_past = tf_->lookupTransform(parent_frame, child_frame, now_time - ros::Duration(d)); 
@@ -1081,14 +1084,16 @@ AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time
   catch (tf2::TransformException& ex)
   {
     ROS_WARN("Could not get tf: %s", ex.what());
+    return move;
   }
-  pf_vector_t move;
+
+  ros::Duration odom_dt = now_time - tf_past.header.stamp;
+  ROS_DEBUG("getOdomMovement odom_dt: %.3f", odom_dt.toSec());
+
   move.v[0] = now_pose.v[0] - tf_past.transform.translation.x;
   move.v[1] = now_pose.v[1] - tf_past.transform.translation.y;
   move.v[2] = angle_diff(now_pose.v[2], tf2::getYaw(tf_past.transform.rotation));
 
-  ros::Duration time_diff = now_time - tf_past.header.stamp;
-  ROS_DEBUG("getOdomMovement time diff: %.3f", time_diff.toSec());
   return move;
 }
 
