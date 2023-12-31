@@ -1081,14 +1081,12 @@ AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time
   {
     ROS_WARN("Could not get tf: %s", ex.what());
   }
-
   pf_vector_t move;
   move.v[0] = now_pose.v[0] - tf_past.transform.translation.x;
   move.v[1] = now_pose.v[1] - tf_past.transform.translation.y;
   move.v[2] = angle_diff(now_pose.v[2], tf2::getYaw(tf_past.transform.rotation));
 
   ros::Duration time_diff = now_time - tf_past.header.stamp;
-  std::cerr << "Time diff: " << time_diff.toSec() << std::endl;
   ROS_DEBUG("getOdomMovement time diff: %.3f", time_diff.toSec());
   return move;
 }
@@ -1107,30 +1105,28 @@ AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_po
   pf_vector_t move = pf_vector_zero();
   try
   {
+    // case for latest < pose < now_pose
     tf_latest = tf_->lookupTransform(parent_frame, child_frame, ros::Time(0));
   }
-  catch (tf2::TransformException& ex)
+  catch (tf2::TransformException& e1)
   {
-    ROS_WARN("Could not get amcl_baselink: %s", ex.what());
-    return move;
+    try
+    {
+      // case for pose < latest < now_pose
+      tf_latest = tf_->lookupTransform(parent_frame, child_frame, now_time - ros::Duration(time_interval));
+    }
+    catch(const std::exception& e2)
+    {
+      ROS_WARN("Could not get amcl_baselink: %s", e2.what());
+      return move;
+    }
   }
-
-  // TODO: should consider to get a tf broadcasted a few steps before
-
   ros::Duration amcl_dt = now_time - tf_latest.header.stamp;
   ROS_DEBUG("getAmclMovement amcl_dt: %.3f", amcl_dt.toSec());
-
-  if (amcl_dt.toSec() < time_interval)
-  {
-    ROS_WARN("amcl_dt < time_interval");
-    return move;
-  }
-
   double liner_interpolation = (amcl_dt.toSec() - time_interval) / amcl_dt.toSec();
   move.v[0] = (now_pose.v[0] - tf_latest.transform.translation.x) * liner_interpolation;
   move.v[1] = (now_pose.v[1] - tf_latest.transform.translation.y) * liner_interpolation;
   move.v[2] = angle_diff(now_pose.v[2], tf2::getYaw(tf_latest.transform.rotation)) * liner_interpolation;
-
   return move;
 }
 
@@ -1458,10 +1454,8 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       }
       // Publish particlecloud every second
       ros::Duration d = ros::Time::now() - last_particlecloud_published_ts_;
-      std::cerr << "d: " << d.toSec() << std::endl;
       if(d > particlecloud_pub_interval_)
       {
-        std::cerr << "amcl_pub" << std::endl;
         particlecloud_pub_.publish(cloud_msg);
         // debug_particlecloud_pub_.publish(cloud_msg);
         last_particlecloud_published_ts_ = ros::Time::now();
@@ -1551,11 +1545,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
        */
 
       // get odom diff and amcl_diff to compare
-      // amcl freaquency depends on the update interval triggered by odom movement
-      
-      // time_interval sould be less than amcl update interval for now
-      // However, we would like to get a amcl_baselink which broadcasted a few steps before
-      double time_interval = 1.0;  // this sould be less than amcl update interval for now
+      double time_interval = 1.0;
       double x_thre = 0.5;
       double y_thre = 0.5;
       double yaw_thre = 0.1;
@@ -1564,12 +1554,9 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       pf_vector_t pure_odom_delta, pure_amcl_delta;
       pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, time_interval);
       pure_amcl_delta = getAmclMovement(p, laser_scan->header.stamp, time_interval);
-      // std::cerr << pure_odom_delta.v[0] << " " << pure_odom_delta.v[1] << " " << pure_odom_delta.v[2] << std::endl;
-      // std::cerr << pure_amcl_delta.v[0] << " " << pure_amcl_delta.v[1] << " " << pure_amcl_delta.v[2] << std::endl;
       dx = pure_odom_delta.v[0] - pure_amcl_delta.v[0];
       dy = pure_odom_delta.v[1] - pure_amcl_delta.v[1];
       dyaw = angle_diff(pure_odom_delta.v[2], pure_amcl_delta.v[2]);
-      // std::cerr << dx << " " << dy << " " << dyaw << std::endl;
 
       bool acceptable_difference = std::fabs(dx) < x_thre &&
                                    std::fabs(dy) < y_thre &&
