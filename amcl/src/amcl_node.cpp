@@ -247,11 +247,11 @@ class AmclNode
     
 
     // To calculate the displacement from Odom and compare it with the displacement from AMCL
-    pf_vector_t getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time, double d);
+    pf_vector_t getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time, double time_interval);
 
     // To calculate the displacement from Amcl and compare it with the displacement from Odom
     pf_vector_t getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_pose_msgs,
-                                  const ros::Time& now_time, double d);
+                                  const ros::Time& now_time, double time_interval);
 
     // broadcast AmclPose and it's used in getAmclMovement in the future
     void broadcastAmclPose(const geometry_msgs::PoseWithCovarianceStamped& p);
@@ -1071,7 +1071,7 @@ AmclNode::getOdomPose(geometry_msgs::PoseStamped& odom_pose,
 }
 
 pf_vector_t
-AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time, double d)
+AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time, double time_interval)
 {
   std::string parent_frame = odom_frame_id_;
   std::string child_frame = base_frame_id_;
@@ -1079,7 +1079,7 @@ AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time
   pf_vector_t move = pf_vector_zero();
   try
   {
-    tf_past = tf_->lookupTransform(parent_frame, child_frame, now_time - ros::Duration(d)); 
+    tf_past = tf_->lookupTransform(parent_frame, child_frame, now_time - ros::Duration(time_interval)); 
   }
   catch (tf2::TransformException& ex)
   {
