@@ -1133,9 +1133,7 @@ AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_po
   ros::Duration amcl_dt = now_time - tf_latest.header.stamp;
   ROS_DEBUG("getAmclMovement amcl_dt: %.3f", amcl_dt.toSec());
 
-  reliable_pose_msg.header = now_pose_msg.header;
-  reliable_pose_msg.pose.pose.position.x = tf_latest.transform.translation.x;
-  reliable_pose_msg.pose.pose.position.y = tf_latest.transform.translation.y;
+  reliable_pose_msg = now_pose_msg;
   reliable_pose_msg.pose.pose.orientation = tf_latest.transform.rotation;
 
   double liner_interpolation = (amcl_dt.toSec() - time_interval) / amcl_dt.toSec();
@@ -1592,24 +1590,51 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       {
         pose_pub_.publish(p);
         broadcastAmclPose(p);
+        last_published_pose = p;
       }
       else
       {
-        reliable_pose_msg.pose.pose.position.x += pure_odom_delta.v[0]; 
-        reliable_pose_msg.pose.pose.position.y += pure_odom_delta.v[1];
+        std::cerr << "updated" << std::endl;
         tf2::Quaternion reliable_q, dq, result_q;
         reliable_q = tf2::Quaternion(reliable_pose_msg.pose.pose.orientation.x,
                                      reliable_pose_msg.pose.pose.orientation.y,
                                      reliable_pose_msg.pose.pose.orientation.z,
                                      reliable_pose_msg.pose.pose.orientation.w);
         dq.setRPY(0, 0, pure_odom_delta.v[2]);
-        reliable_q = reliable_q * dq;
-        reliable_pose_msg.pose.pose.orientation.x = reliable_q.x();
-        reliable_pose_msg.pose.pose.orientation.y = reliable_q.y();
-        reliable_pose_msg.pose.pose.orientation.z = reliable_q.z();
-        reliable_pose_msg.pose.pose.orientation.w = reliable_q.w();
+        result_q = reliable_q * dq;
+        reliable_pose_msg.pose.pose.orientation.x = result_q.x();
+        reliable_pose_msg.pose.pose.orientation.y = result_q.y();
+        reliable_pose_msg.pose.pose.orientation.z = result_q.z();
+        reliable_pose_msg.pose.pose.orientation.w = result_q.w();
         pose_pub_.publish(reliable_pose_msg);
         broadcastAmclPose(reliable_pose_msg);
+        last_published_pose = reliable_pose_msg;
+        pf_vector_t pf_init_pose_mean = pf_vector_zero();
+        pf_init_pose_mean.v[0] = last_published_pose.pose.pose.position.x;
+        pf_init_pose_mean.v[1] = last_published_pose.pose.pose.position.y;
+        pf_init_pose_mean.v[2] = tf2::getYaw(last_published_pose.pose.pose.orientation);
+        pf_matrix_t pf_init_pose_cov = pf_matrix_zero();
+        // 1
+        // pf_init_pose_cov.m[0][0] = p.pose.covariance[0];
+        // pf_init_pose_cov.m[1][1] = p.pose.covariance[7];
+        // pf_init_pose_cov.m[2][2] = p.pose.covariance[35];
+        // 2
+        // pf_init_pose_cov.m[0][0] = p.pose.covariance[0] + 0.1;
+        // pf_init_pose_cov.m[1][1] = p.pose.covariance[7] + 0.1;
+        // pf_init_pose_cov.m[2][2] = p.pose.covariance[35];
+        // 3
+        // pf_init_pose_cov.m[0][0] = init_cov_[0];
+        // pf_init_pose_cov.m[1][1] = init_cov_[1];
+        // pf_init_pose_cov.m[2][2] = init_cov_[2];
+        // 4 
+        pf_init_pose_cov.m[0][0] = init_cov_[0] + 0.1;
+        pf_init_pose_cov.m[1][1] = init_cov_[1] + 0.1;
+        pf_init_pose_cov.m[2][2] = init_cov_[2];
+        // 5
+        // pf_init_pose_cov.m[0][0] = init_cov_[0] + 0.5;
+        // pf_init_pose_cov.m[1][1] = init_cov_[1] + 0.5;
+        // pf_init_pose_cov.m[2][2] = init_cov_[2];
+        pf_init(pf_, pf_init_pose_mean, pf_init_pose_cov);
       }
 
       // if (acceptable_difference)
