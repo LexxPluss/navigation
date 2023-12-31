@@ -679,6 +679,7 @@ void AmclNode::reconfigureCB(AMCLConfig &config, uint32_t level)
   odom_frame_id_ = stripSlash(config.odom_frame_id);
   base_frame_id_ = stripSlash(config.base_frame_id);
   global_frame_id_ = stripSlash(config.global_frame_id);
+  amcl_base_frame_id_ = "amcl_base_link";
 
   delete laser_scan_filter_;
   laser_scan_filter_ = 
@@ -1100,7 +1101,7 @@ AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_po
   now_pose.v[1] = now_pose_msgs.pose.pose.position.y;
   now_pose.v[2] = tf2::getYaw(now_pose_msgs.pose.pose.orientation);
   std::string parent_frame = global_frame_id_;
-  std::string child_frame = "amcl_baselink";
+  std::string child_frame = amcl_base_frame_id_;
   geometry_msgs::TransformStamped tf_latest;
   pf_vector_t move = pf_vector_zero();
   try
@@ -1135,7 +1136,7 @@ AmclNode::broadcastAmclPose(const geometry_msgs::PoseWithCovarianceStamped& p)
 {
   geometry_msgs::TransformStamped transform;
   transform.header = p.header;
-  transform.child_frame_id = "amcl_baselink";
+  transform.child_frame_id = amcl_base_frame_id_;
   transform.transform.translation.x = p.pose.pose.position.x;
   transform.transform.translation.y = p.pose.pose.position.y;
   transform.transform.translation.z = p.pose.pose.position.z;
