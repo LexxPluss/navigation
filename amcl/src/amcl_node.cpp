@@ -250,8 +250,9 @@ class AmclNode
     pf_vector_t getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time, double time_interval);
 
     // To calculate the displacement from Amcl and compare it with the displacement from Odom
-    pf_vector_t getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_pose_msgs,
-                                  const ros::Time& now_time, double time_interval);
+    pf_vector_t getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_pose_msg,
+                                  const ros::Time& now_time, double time_interval,
+                                  geometry_msgs::PoseWithCovarianceStamped& reliable_pose_msg);
 
     // broadcast AmclPose and it's used in getAmclMovement in the future
     void broadcastAmclPose(const geometry_msgs::PoseWithCovarianceStamped& p);
@@ -1098,13 +1099,14 @@ AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time
 }
 
 pf_vector_t
-AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_pose_msgs,
-                              const ros::Time& now_time, double time_interval)
+AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_pose_msg,
+                              const ros::Time& now_time, double time_interval,
+                              geometry_msgs::PoseWithCovarianceStamped& reliable_pose_msg)
 {
   pf_vector_t now_pose;
-  now_pose.v[0] = now_pose_msgs.pose.pose.position.x;
-  now_pose.v[1] = now_pose_msgs.pose.pose.position.y;
-  now_pose.v[2] = tf2::getYaw(now_pose_msgs.pose.pose.orientation);
+  now_pose.v[0] = now_pose_msg.pose.pose.position.x;
+  now_pose.v[1] = now_pose_msg.pose.pose.position.y;
+  now_pose.v[2] = tf2::getYaw(now_pose_msg.pose.pose.orientation);
   std::string parent_frame = global_frame_id_;
   std::string child_frame = amcl_base_frame_id_;
   geometry_msgs::TransformStamped tf_latest;
@@ -1127,8 +1129,15 @@ AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_po
       return move;
     }
   }
+
   ros::Duration amcl_dt = now_time - tf_latest.header.stamp;
   ROS_DEBUG("getAmclMovement amcl_dt: %.3f", amcl_dt.toSec());
+
+  reliable_pose_msg.header = now_pose_msg.header;
+  reliable_pose_msg.pose.pose.position.x = tf_latest.transform.translation.x;
+  reliable_pose_msg.pose.pose.position.y = tf_latest.transform.translation.y;
+  reliable_pose_msg.pose.pose.orientation = tf_latest.transform.rotation;
+
   double liner_interpolation = (amcl_dt.toSec() - time_interval) / amcl_dt.toSec();
   move.v[0] = (now_pose.v[0] - tf_latest.transform.translation.x) * liner_interpolation;
   move.v[1] = (now_pose.v[1] - tf_latest.transform.translation.y) * liner_interpolation;
@@ -1558,8 +1567,9 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       double dx, dy, dyaw;
 
       pf_vector_t pure_odom_delta, pure_amcl_delta;
+      geometry_msgs::PoseWithCovarianceStamped reliable_pose_msg;
       pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, time_interval);
-      pure_amcl_delta = getAmclMovement(p, laser_scan->header.stamp, time_interval);
+      pure_amcl_delta = getAmclMovement(p, laser_scan->header.stamp, time_interval, reliable_pose_msg);
       dx = pure_odom_delta.v[0] - pure_amcl_delta.v[0];
       dy = pure_odom_delta.v[1] - pure_amcl_delta.v[1];
       dyaw = angle_diff(pure_odom_delta.v[2], pure_amcl_delta.v[2]);
@@ -1567,6 +1577,8 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       bool acceptable_difference = std::fabs(dx) < x_thre &&
                                    std::fabs(dy) < y_thre &&
                                    std::fabs(dyaw) < yaw_thre;
+
+      bool acceptable_yaw = std::fabs(dyaw) < yaw_thre;
 
       std_msgs::Float32 dx_msg, dy_msg, dyaw_msg;
       dx_msg.data = dx;
@@ -1576,8 +1588,29 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       odom_amcl_diff_y_pub_.publish(dy_msg);
       odom_amcl_diff_yaw_pub_.publish(dyaw_msg);
 
-      pose_pub_.publish(p);
-      broadcastAmclPose(p);
+      if (acceptable_yaw)
+      {
+        pose_pub_.publish(p);
+        broadcastAmclPose(p);
+      }
+      else
+      {
+        reliable_pose_msg.pose.pose.position.x += pure_odom_delta.v[0]; 
+        reliable_pose_msg.pose.pose.position.y += pure_odom_delta.v[1];
+        tf2::Quaternion reliable_q, dq, result_q;
+        reliable_q = tf2::Quaternion(reliable_pose_msg.pose.pose.orientation.x,
+                                     reliable_pose_msg.pose.pose.orientation.y,
+                                     reliable_pose_msg.pose.pose.orientation.z,
+                                     reliable_pose_msg.pose.pose.orientation.w);
+        dq.setRPY(0, 0, pure_odom_delta.v[2]);
+        reliable_q = reliable_q * dq;
+        reliable_pose_msg.pose.pose.orientation.x = reliable_q.x();
+        reliable_pose_msg.pose.pose.orientation.y = reliable_q.y();
+        reliable_pose_msg.pose.pose.orientation.z = reliable_q.z();
+        reliable_pose_msg.pose.pose.orientation.w = reliable_q.w();
+        pose_pub_.publish(reliable_pose_msg);
+        broadcastAmclPose(reliable_pose_msg);
+      }
 
       // if (acceptable_difference)
       // {
