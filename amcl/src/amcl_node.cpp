@@ -1070,8 +1070,8 @@ AmclNode::getOdomPose(geometry_msgs::PoseStamped& odom_pose,
 pf_vector_t
 AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time, double d)
 {
-  std::string parent_frame = stripSlash(odom_frame_id_);
-  std::string child_frame = stripSlash(base_frame_id_);
+  std::string parent_frame = odom_frame_id_;
+  std::string child_frame = base_frame_id_;
   geometry_msgs::TransformStamped tf_past;
   try
   {
@@ -1095,42 +1095,51 @@ AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time
 
 pf_vector_t
 AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_pose_msgs,
-                              const ros::Time& now_time, double d)
+                              const ros::Time& now_time, double time_interval)
 {
   pf_vector_t now_pose;
   now_pose.v[0] = now_pose_msgs.pose.pose.position.x;
   now_pose.v[1] = now_pose_msgs.pose.pose.position.y;
   now_pose.v[2] = tf2::getYaw(now_pose_msgs.pose.pose.orientation);
-  std::string parent_frame = stripSlash(global_frame_id_);
-  std::string child_frame = "amcl_pose";
-  geometry_msgs::TransformStamped tf_past;
+  std::string parent_frame = global_frame_id_;
+  std::string child_frame = "amcl_baselink";
+  geometry_msgs::TransformStamped tf_latest;
+  pf_vector_t move = pf_vector_zero();
   try
   {
-    tf_past = tf_->lookupTransform(parent_frame, child_frame, now_time - ros::Duration(d)); 
+    tf_latest = tf_->lookupTransform(parent_frame, child_frame, ros::Time(0));
   }
   catch (tf2::TransformException& ex)
   {
-    ROS_WARN("Could not get tf: %s", ex.what());
+    ROS_WARN("Could not get amcl_baselink: %s", ex.what());
+    return move;
   }
 
-  pf_vector_t move;
-  move.v[0] = now_pose.v[0] - tf_past.transform.translation.x;
-  move.v[1] = now_pose.v[1] - tf_past.transform.translation.y;
-  move.v[2] = angle_diff(now_pose.v[2], tf2::getYaw(tf_past.transform.rotation));
+  // TODO: should consider to get a tf broadcasted a few steps before
 
-  ros::Duration time_diff = now_time - tf_past.header.stamp;
-  ROS_DEBUG("getAmclMovement time diff: %.3f", time_diff.toSec());
+  ros::Duration amcl_dt = now_time - tf_latest.header.stamp;
+  ROS_DEBUG("getAmclMovement amcl_dt: %.3f", amcl_dt.toSec());
+
+  if (amcl_dt.toSec() < time_interval)
+  {
+    ROS_WARN("amcl_dt < time_interval");
+    return move;
+  }
+
+  double liner_interpolation = (amcl_dt.toSec() - time_interval) / amcl_dt.toSec();
+  move.v[0] = (now_pose.v[0] - tf_latest.transform.translation.x) * liner_interpolation;
+  move.v[1] = (now_pose.v[1] - tf_latest.transform.translation.y) * liner_interpolation;
+  move.v[2] = angle_diff(now_pose.v[2], tf2::getYaw(tf_latest.transform.rotation)) * liner_interpolation;
+
   return move;
 }
 
 void
 AmclNode::broadcastAmclPose(const geometry_msgs::PoseWithCovarianceStamped& p)
 {
-  
   geometry_msgs::TransformStamped transform;
   transform.header = p.header;
-  transform.header.frame_id = global_frame_id_;
-  transform.child_frame_id = "amcl_pose";
+  transform.child_frame_id = "amcl_baselink";
   transform.transform.translation.x = p.pose.pose.position.x;
   transform.transform.translation.y = p.pose.pose.position.y;
   transform.transform.translation.z = p.pose.pose.position.z;
@@ -1449,10 +1458,12 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       }
       // Publish particlecloud every second
       ros::Duration d = ros::Time::now() - last_particlecloud_published_ts_;
+      std::cerr << "d: " << d.toSec() << std::endl;
       if(d > particlecloud_pub_interval_)
       {
+        std::cerr << "amcl_pub" << std::endl;
         particlecloud_pub_.publish(cloud_msg);
-        debug_particlecloud_pub_.publish(cloud_msg);
+        // debug_particlecloud_pub_.publish(cloud_msg);
         last_particlecloud_published_ts_ = ros::Time::now();
       }
     }
@@ -1540,18 +1551,25 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
        */
 
       // get odom diff and amcl_diff to compare
-      double dt = 1.0;
+      // amcl freaquency depends on the update interval triggered by odom movement
+      
+      // time_interval sould be less than amcl update interval for now
+      // However, we would like to get a amcl_baselink which broadcasted a few steps before
+      double time_interval = 1.0;  // this sould be less than amcl update interval for now
       double x_thre = 0.5;
       double y_thre = 0.5;
       double yaw_thre = 0.1;
       double dx, dy, dyaw;
 
       pf_vector_t pure_odom_delta, pure_amcl_delta;
-      pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, dt);
-      pure_amcl_delta = getAmclMovement(p, laser_scan->header.stamp, dt);
+      pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, time_interval);
+      pure_amcl_delta = getAmclMovement(p, laser_scan->header.stamp, time_interval);
+      // std::cerr << pure_odom_delta.v[0] << " " << pure_odom_delta.v[1] << " " << pure_odom_delta.v[2] << std::endl;
+      // std::cerr << pure_amcl_delta.v[0] << " " << pure_amcl_delta.v[1] << " " << pure_amcl_delta.v[2] << std::endl;
       dx = pure_odom_delta.v[0] - pure_amcl_delta.v[0];
       dy = pure_odom_delta.v[1] - pure_amcl_delta.v[1];
       dyaw = angle_diff(pure_odom_delta.v[2], pure_amcl_delta.v[2]);
+      // std::cerr << dx << " " << dy << " " << dyaw << std::endl;
 
       bool acceptable_difference = std::fabs(dx) < x_thre &&
                                    std::fabs(dy) < y_thre &&
