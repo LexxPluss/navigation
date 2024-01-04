@@ -1074,10 +1074,20 @@ AmclNode::getOdomPose(geometry_msgs::PoseStamped& odom_pose,
 pf_vector_t
 AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time, double time_interval)
 {
-  std::string parent_frame = odom_frame_id_;
+  // To match the frame of amcl_base_link
+  std::string parent_frame = global_frame_id_;
   std::string child_frame = base_frame_id_;
-  geometry_msgs::TransformStamped tf_past;
+  geometry_msgs::TransformStamped tf_now, tf_past;
   pf_vector_t move = pf_vector_zero();
+  try
+  {
+    tf_now = tf_->lookupTransform(parent_frame, child_frame, now_time); 
+  }
+  catch (tf2::TransformException& ex)
+  {
+    ROS_WARN("Could not get tf: %s", ex.what());
+    return move;
+  }
   try
   {
     tf_past = tf_->lookupTransform(parent_frame, child_frame, now_time - ros::Duration(time_interval)); 
@@ -1091,9 +1101,9 @@ AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now_time
   ros::Duration odom_dt = now_time - tf_past.header.stamp;
   ROS_DEBUG("getOdomMovement odom_dt: %.3f", odom_dt.toSec());
 
-  move.v[0] = now_pose.v[0] - tf_past.transform.translation.x;
-  move.v[1] = now_pose.v[1] - tf_past.transform.translation.y;
-  move.v[2] = angle_diff(now_pose.v[2], tf2::getYaw(tf_past.transform.rotation));
+  move.v[0] = tf_now.transform.translation.x - tf_past.transform.translation.x;
+  move.v[1] = tf_now.transform.translation.y - tf_past.transform.translation.y;
+  move.v[2] = angle_diff(tf2::getYaw(tf_now.transform.rotation), tf2::getYaw(tf_past.transform.rotation));
 
   return move;
 }
@@ -1111,17 +1121,22 @@ AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_po
   std::string child_frame = amcl_base_frame_id_;
   geometry_msgs::TransformStamped tf_latest;
   pf_vector_t move = pf_vector_zero();
+  double liner_interpolation = 1.0;
+  ros::Duration amcl_dt;
   try
   {
-    // case for latest < pose < now_pose
-    tf_latest = tf_->lookupTransform(parent_frame, child_frame, ros::Time(0));
+    // case for pose < latest < now_pose
+    tf_latest = tf_->lookupTransform(parent_frame, child_frame, now_time - ros::Duration(time_interval));
+    amcl_dt = ros::Duration(time_interval);
   }
   catch (tf2::TransformException& e1)
   {
     try
     {
-      // case for pose < latest < now_pose
-      tf_latest = tf_->lookupTransform(parent_frame, child_frame, now_time - ros::Duration(time_interval));
+      // case for latest < pose < now_pose
+      tf_latest = tf_->lookupTransform(parent_frame, child_frame, ros::Time(0));
+      amcl_dt = now_time - tf_latest.header.stamp;
+      liner_interpolation = (amcl_dt.toSec() - time_interval) / amcl_dt.toSec();
     }
     catch(const std::exception& e2)
     {
@@ -1130,7 +1145,6 @@ AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_po
     }
   }
 
-  ros::Duration amcl_dt = now_time - tf_latest.header.stamp;
   ROS_DEBUG("getAmclMovement amcl_dt: %.3f", amcl_dt.toSec());
 
   reliable_pose_msg = now_pose_msg;
@@ -1138,7 +1152,6 @@ AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_po
   reliable_pose_msg.pose.pose.position.y = tf_latest.transform.translation.y;
   reliable_pose_msg.pose.pose.orientation = tf_latest.transform.rotation;
 
-  double liner_interpolation = (amcl_dt.toSec() - time_interval) / amcl_dt.toSec();
   move.v[0] = (now_pose.v[0] - tf_latest.transform.translation.x) * liner_interpolation;
   move.v[1] = (now_pose.v[1] - tf_latest.transform.translation.y) * liner_interpolation;
   move.v[2] = angle_diff(now_pose.v[2], tf2::getYaw(tf_latest.transform.rotation)) * liner_interpolation;
@@ -1563,7 +1576,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       double time_interval = 1.0;
       double x_thre = 0.5;
       double y_thre = 0.5;
-      double yaw_thre = 0.1;
+      double yaw_thre = 0.05;
       double dx, dy, dyaw;
 
       pf_vector_t pure_odom_delta, pure_amcl_delta;
@@ -1651,6 +1664,9 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         pf_init_pose_mean.v[2] = tf2::getYaw(last_published_pose.pose.pose.orientation);
         // cov have aleady updated 
 
+        pf_init_pose_cov.m[0][0] = init_cov_[0] + 0.1;
+        pf_init_pose_cov.m[1][1] = init_cov_[1] + 0.1;
+        pf_init_pose_cov.m[2][2] = init_cov_[2] + 0.05;
         pf_init(pf_, pf_init_pose_mean, pf_init_pose_cov);
       }
 
