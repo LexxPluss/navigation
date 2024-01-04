@@ -1589,6 +1589,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       pf_vector_t pf_init_pose_mean = pf_vector_zero();
       pf_matrix_t pf_init_pose_cov = pf_matrix_zero();
       if (acceptable_x && acceptable_y && acceptable_yaw)
+      // if (true)  // DEBUG
       {
         pose_pub_.publish(p);
         broadcastAmclPose(p);
@@ -1596,7 +1597,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       }
       else
       {
-        // acceptable_x = true;
+        acceptable_x = true;
         if (acceptable_x)
         {
           reliable_pose_msg.pose.pose.position.x = p.pose.pose.position.x;
@@ -1605,10 +1606,10 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         else
         {
           reliable_pose_msg.pose.pose.position.x += pure_odom_delta.v[0];
-          pf_init_pose_cov.m[0][0] = init_cov_[0] + 0.1;
+          pf_init_pose_cov.m[0][0] = init_cov_[0];
         }
         
-        // acceptable_y = true;
+        acceptable_y = true;
         if (acceptable_y)
         {
           reliable_pose_msg.pose.pose.position.y = p.pose.pose.position.y;
@@ -1617,7 +1618,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         else
         {
           reliable_pose_msg.pose.pose.position.y += pure_odom_delta.v[1];
-          pf_init_pose_cov.m[1][1] = init_cov_[1] + 0.1;
+          pf_init_pose_cov.m[1][1] = init_cov_[1];
         }
 
         if (acceptable_yaw)
@@ -1639,7 +1640,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
           reliable_pose_msg.pose.pose.orientation.z = result_q.z();
           reliable_pose_msg.pose.pose.orientation.w = result_q.w();
 
-          pf_init_pose_cov.m[2][2] = init_cov_[2] + 0.01;
+          pf_init_pose_cov.m[2][2] = init_cov_[2];
         }
         pose_pub_.publish(reliable_pose_msg);
         broadcastAmclPose(reliable_pose_msg);
