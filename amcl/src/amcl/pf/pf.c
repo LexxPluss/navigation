@@ -263,6 +263,7 @@ void pf_update_action(pf_t *pf, pf_action_model_fn_t action_fn, void *action_dat
 }
 
 extern double sharedPfWeight;
+extern double sharedUnlikelyPfCount;
 #include <float.h>
 // Update the filter with some new sensor observation
 void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_data)
@@ -280,6 +281,7 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
   fprintf(stderr, "cnt  : %d\n", set->unlikely_count);
   //fprintf(stderr, "ptr  : %p\n", &set);
   sharedPfWeight = total;
+  sharedUnlikelyPfCount = set->unlikely_count;
 
   set->n_effective = 0;
 
@@ -288,8 +290,9 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
   const double sy = 0.2;  // 0.5
   const double st = 0.01;  // 0.1
   const double sigma[3] = {sx, sy, st};
-  int unlikely_count_th = 10000;
+  int unlikely_count_th = 10000000;
   double expansion_resetting_th = 2.0;
+
 
    
   if (expansion_resetting_th < total || set->unlikely_count <= unlikely_count_th)
