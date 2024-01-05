@@ -262,7 +262,7 @@ void pf_update_action(pf_t *pf, pf_action_model_fn_t action_fn, void *action_dat
   return;
 }
 
-
+extern double sharedPfWeight;
 #include <float.h>
 // Update the filter with some new sensor observation
 void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_data)
@@ -276,12 +276,33 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
 
   // Compute the sample weights
   total = (*sensor_fn) (sensor_data, set);
+  fprintf(stderr, "total: %f\n", total);
+  fprintf(stderr, "cnt  : %d\n", set->unlikely_count);
+  //fprintf(stderr, "ptr  : %p\n", &set);
+  sharedPfWeight = total;
 
   set->n_effective = 0;
-  
-  if (total > 0.0)
+
+  /* SET VALIABLE */
+  const double sx = 0.2;  // 0.1
+  const double sy = 0.2;  // 0.5
+  const double st = 0.01;  // 0.1
+  const double sigma[3] = {sx, sy, st};
+  int unlikely_count_th = 10000;
+  double expansion_resetting_th = 2.0;
+
+   
+  if (expansion_resetting_th < total || set->unlikely_count <= unlikely_count_th)
   {
-    // Normalize weights
+
+    // count 
+    if (expansion_resetting_th > total) set->unlikely_count++;
+    else set->unlikely_count--;
+    if (set->unlikely_count < 0) set->unlikely_count = 0;
+
+    
+    if (expansion_resetting_th > total) set->unlikely_count++;
+
     double w_avg=0.0;
     for (i = 0; i < set->sample_count; i++)
     {
@@ -300,17 +321,22 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
       pf->w_fast = w_avg;
     else
       pf->w_fast += pf->alpha_fast * (w_avg - pf->w_fast);
-    //printf("w_avg: %e slow: %e fast: %e\n", 
-           //w_avg, pf->w_slow, pf->w_fast);
+
   }
   else
   {
-    // Handle zero total
+    fprintf(stderr, "\n\n\n%d\n\n\n", set->unlikely_count);
     for (i = 0; i < set->sample_count; i++)
     {
       sample = set->samples + i;
       sample->weight = 1.0 / set->sample_count;
+      for (int j = 0; j < 3; j++)
+      {
+        sample->pose.v[j] += pf_ran_gaussian(sigma[j]);
+      }
     }
+    set->unlikely_count = 0;
+
   }
 
   set->n_effective = 1.0/set->n_effective;

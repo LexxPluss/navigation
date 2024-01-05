@@ -93,6 +93,8 @@ typedef struct _pf_sample_set_t
   int sample_count;
   pf_sample_t *samples;
 
+  int unlikely_count;
+
   // A kdtree encoding the histogram
   pf_kdtree_t *kdtree;
 
