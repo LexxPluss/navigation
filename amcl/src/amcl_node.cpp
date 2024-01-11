@@ -315,6 +315,11 @@ class AmclNode
     bool tf_broadcast_;
     bool selective_resampling_;
 
+    // odom correction
+    double odom_amcl_x_thre_;
+    double odom_amcl_z_thre_;
+    int odom_amcl_diff_count_thre_;
+
     void reconfigureCB(amcl::AMCLConfig &config, uint32_t level);
 
     ros::Time last_laser_received_ts_;
@@ -476,6 +481,11 @@ AmclNode::AmclNode() :
   private_nh_.param("recovery_alpha_slow", alpha_slow_, 0.001);
   private_nh_.param("recovery_alpha_fast", alpha_fast_, 0.1);
   private_nh_.param("tf_broadcast", tf_broadcast_, true);
+
+  // odom_correction
+  private_nh_.param("odom_amcl_x_thre", odom_amcl_x_thre_, 0.2);
+  private_nh_.param("odom_amcl_z_thre", odom_amcl_z_thre_, 0.01);
+  private_nh_.param("odom_amcl_diff_count_thre", odom_amcl_diff_count_thre_, 5);
 
   // For diagnostics
   private_nh_.param("std_warn_level_x", std_warn_level_x_, 0.2);
@@ -1573,12 +1583,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
        */
 
 
-      // get odom diff and amcl_diff to compare
-      // TODO: parameterize later
-      const double x_thre = 0.2;
-      const double z_thre = 0.02;  // 0.1 when time_interval 1.0
-      const int diff_count_thre = 5;
-
+      // odom_correction
       pf_vector_t pure_odom_delta, pure_amcl_delta;
       ros::Time get_odom_time;
       geometry_msgs::PoseWithCovarianceStamped reliable_pose_msg;
@@ -1588,8 +1593,8 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       double dx = sqrt(std::pow(pure_odom_delta.v[0] - pure_amcl_delta.v[0], 2) +
                        std::pow(pure_odom_delta.v[1] - pure_amcl_delta.v[1], 2));
       double dz = angle_diff(pure_odom_delta.v[2], pure_amcl_delta.v[2]);
-      bool acceptable_x = std::fabs(dx) < x_thre;
-      bool acceptable_z = std::fabs(dz) < z_thre;
+      bool acceptable_x = std::fabs(dx) < odom_amcl_x_thre_;
+      bool acceptable_z = std::fabs(dz) < odom_amcl_z_thre_;
 
       // For debug
       std_msgs::Float32 dx_msg, dz_msg, diff_count_msg, pf_weight_msg, unlikely_pf_count_msg;
@@ -1606,7 +1611,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
 
       // acceptable_x = true;
       // acceptable_z = true;
-      if (diff_count_ == diff_count_thre) diff_count_ = 0;
+      if (diff_count_ == odom_amcl_diff_count_thre_) diff_count_ = 0;
       if (acceptable_x && acceptable_z)
       {
         pose_pub_.publish(p);
@@ -1616,9 +1621,8 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       }
       else
       {
-        // TODO: update latest reliable time
         if (diff_count_ == 0) latest_reliable_pose_time_ = get_odom_time;
-        if (++diff_count_ < diff_count_thre)
+        if (++diff_count_ < odom_amcl_diff_count_thre_)
         {
           pose_pub_.publish(p);
           broadcastAmclPose(p);
