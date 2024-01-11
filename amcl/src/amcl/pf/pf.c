@@ -277,15 +277,12 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
 
   // Compute the sample weights
   total = (*sensor_fn) (sensor_data, set);
-  fprintf(stderr, "total: %f\n", total);
-  fprintf(stderr, "cnt  : %d\n", set->unlikely_count);
-  //fprintf(stderr, "ptr  : %p\n", &set);
   sharedPfWeight = total;
   sharedUnlikelyPfCount = set->unlikely_count;
 
   set->n_effective = 0;
 
-  /* SET VALIABLE */
+  /* SET EXPANSION RESETTING VALIABLE */
   const double sx = 0.2;  // 0.1
   const double sy = 0.2;  // 0.5
   const double st = 0.01;  // 0.1
@@ -324,11 +321,12 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
       pf->w_fast = w_avg;
     else
       pf->w_fast += pf->alpha_fast * (w_avg - pf->w_fast);
+    //printf("w_avg: %e slow: %e fast: %e\n",
+           //w_avg, pf->w_slow, pf->w_fast);
 
   }
   else
   {
-    fprintf(stderr, "\n\n\n%d\n\n\n", set->unlikely_count);
     for (i = 0; i < set->sample_count; i++)
     {
       sample = set->samples + i;
@@ -517,7 +515,6 @@ void pf_update_resample(pf_t *pf)
   if(w_diff > 0.0)
     pf->w_slow = pf->w_fast = 0.0;
 
-  //fprintf(stderr, "\n\n");
 
   // Normalize weights
   for (i = 0; i < set_b->sample_count; i++)

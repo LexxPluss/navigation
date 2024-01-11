@@ -1585,6 +1585,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
          }
        */
 
+
       // get odom diff and amcl_diff to compare
       double time_interval = 0.2;
       double x_thre = 0.1;  // 0.5 when time_interval 1.0
@@ -1708,18 +1709,6 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
           pf_init(pf_, pf_init_pose_mean, pf_init_pose_cov);
         }
       }
-
-      // if (acceptable_difference)
-      // {
-      //   pose_pub_.publish(p);
-      //   last_published_pose = p;
-      //   broadcastAmclPose(p);
-      // }
-      // else
-      // {
-      //   // pub latest reliable amcl + odom pose
-      // }
-      // debug_pose_pub_.publish(p);
 
       ROS_DEBUG("New pose: %6.3f %6.3f %6.3f",
                hyps[max_weight_hyp].pf_pose_mean.v[0],
