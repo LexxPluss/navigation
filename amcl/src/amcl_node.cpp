@@ -316,6 +316,7 @@ class AmclNode
     bool selective_resampling_;
 
     // odom correction
+    bool odom_correction_;
     double odom_amcl_x_thre_;
     double odom_amcl_z_thre_;
     int odom_amcl_diff_count_thre_;
@@ -483,6 +484,7 @@ AmclNode::AmclNode() :
   private_nh_.param("tf_broadcast", tf_broadcast_, true);
 
   // odom_correction
+  private_nh_.param("odom_correction", odom_correction_, false);
   private_nh_.param("odom_amcl_x_thre", odom_amcl_x_thre_, 0.2);
   private_nh_.param("odom_amcl_z_thre", odom_amcl_z_thre_, 0.01);
   private_nh_.param("odom_amcl_diff_count_thre", odom_amcl_diff_count_thre_, 5);
@@ -1584,101 +1586,109 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
 
 
       // odom_correction
-      pf_vector_t pure_odom_delta, pure_amcl_delta;
-      ros::Time get_odom_time;
-      geometry_msgs::PoseWithCovarianceStamped reliable_pose_msg;
-
-      pure_amcl_delta = getAmclMovement(p, get_odom_time, reliable_pose_msg);
-      pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, get_odom_time);
-      double dx = sqrt(std::pow(pure_odom_delta.v[0] - pure_amcl_delta.v[0], 2) +
-                       std::pow(pure_odom_delta.v[1] - pure_amcl_delta.v[1], 2));
-      double dz = angle_diff(pure_odom_delta.v[2], pure_amcl_delta.v[2]);
-      bool acceptable_x = std::fabs(dx) < odom_amcl_x_thre_;
-      bool acceptable_z = std::fabs(dz) < odom_amcl_z_thre_;
-
-      // For debug
-      std_msgs::Float32 dx_msg, dz_msg, diff_count_msg, pf_weight_msg, unlikely_pf_count_msg;
-      dx_msg.data = dx;
-      dz_msg.data = dz;
-      diff_count_msg.data = float(diff_count_);
-      pf_weight_msg.data = float(sharedPfWeight);
-      unlikely_pf_count_msg.data = float(sharedUnlikelyPfCount);
-      odom_amcl_diff_x_pub_.publish(dx_msg);
-      odom_amcl_diff_z_pub_.publish(dz_msg);
-      diff_count_pub_.publish(diff_count_msg);
-      pf_weight_pub_.publish(pf_weight_msg);
-      unlikely_pf_count_pub_.publish(unlikely_pf_count_msg);
-
-      // acceptable_x = true;
-      // acceptable_z = true;
-      if (diff_count_ == odom_amcl_diff_count_thre_) diff_count_ = 0;
-      if (acceptable_x && acceptable_z)
+      if (!odom_correction_)
       {
         pose_pub_.publish(p);
-        broadcastAmclPose(p);
         last_published_pose = p;
-        diff_count_ = 0;
       }
       else
       {
-        if (diff_count_ == 0) latest_reliable_pose_time_ = get_odom_time;
-        if (++diff_count_ < odom_amcl_diff_count_thre_)
+        pf_vector_t pure_odom_delta, pure_amcl_delta;
+        ros::Time get_odom_time;
+        geometry_msgs::PoseWithCovarianceStamped reliable_pose_msg;
+
+        pure_amcl_delta = getAmclMovement(p, get_odom_time, reliable_pose_msg);
+        pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, get_odom_time);
+        double dx = sqrt(std::pow(pure_odom_delta.v[0] - pure_amcl_delta.v[0], 2) +
+                         std::pow(pure_odom_delta.v[1] - pure_amcl_delta.v[1], 2));
+        double dz = angle_diff(pure_odom_delta.v[2], pure_amcl_delta.v[2]);
+        bool acceptable_x = std::fabs(dx) < odom_amcl_x_thre_;
+        bool acceptable_z = std::fabs(dz) < odom_amcl_z_thre_;
+
+        // For debug
+        std_msgs::Float32 dx_msg, dz_msg, diff_count_msg, pf_weight_msg, unlikely_pf_count_msg;
+        dx_msg.data = dx;
+        dz_msg.data = dz;
+        diff_count_msg.data = float(diff_count_);
+        pf_weight_msg.data = float(sharedPfWeight);
+        unlikely_pf_count_msg.data = float(sharedUnlikelyPfCount);
+        odom_amcl_diff_x_pub_.publish(dx_msg);
+        odom_amcl_diff_z_pub_.publish(dz_msg);
+        diff_count_pub_.publish(diff_count_msg);
+        pf_weight_pub_.publish(pf_weight_msg);
+        unlikely_pf_count_pub_.publish(unlikely_pf_count_msg);
+
+        // acceptable_x = true;
+        // acceptable_z = true;
+        if (diff_count_ == odom_amcl_diff_count_thre_) diff_count_ = 0;
+        if (acceptable_x && acceptable_z)
         {
           pose_pub_.publish(p);
           broadcastAmclPose(p);
           last_published_pose = p;
+          diff_count_ = 0;
         }
-        else{
-          ros::Time get_odom_correction_time;
-          pure_amcl_delta = getAmclMovement(p, get_odom_correction_time, reliable_pose_msg, latest_reliable_pose_time_);
-          pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, get_odom_correction_time);
-          ROS_DEBUG("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nlaser scan time: %f", laser_scan->header.stamp.toSec());
-          ROS_DEBUG("laser scan time: %f", laser_scan->header.stamp.toSec());
-          ROS_DEBUG("correction odom time: %f", get_odom_correction_time.toSec());
-
-          if (acceptable_x)
+        else
+        {
+          if (diff_count_ == 0) latest_reliable_pose_time_ = get_odom_time;
+          if (++diff_count_ < odom_amcl_diff_count_thre_)
           {
-            reliable_pose_msg.pose.pose.position.x = p.pose.pose.position.x;
-            reliable_pose_msg.pose.pose.position.y = p.pose.pose.position.y;
+            pose_pub_.publish(p);
+            broadcastAmclPose(p);
+            last_published_pose = p;
           }
-          else
-          {
-            reliable_pose_msg.pose.pose.position.x += pure_odom_delta.v[0];
-            reliable_pose_msg.pose.pose.position.y += pure_odom_delta.v[1];
-          }
+          else{
+            ros::Time get_odom_correction_time;
+            pure_amcl_delta = getAmclMovement(p, get_odom_correction_time, reliable_pose_msg, latest_reliable_pose_time_);
+            pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, get_odom_correction_time);
+            ROS_DEBUG("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nlaser scan time: %f", laser_scan->header.stamp.toSec());
+            ROS_DEBUG("laser scan time: %f", laser_scan->header.stamp.toSec());
+            ROS_DEBUG("correction odom time: %f", get_odom_correction_time.toSec());
 
-          if (acceptable_z)
-          {
-            reliable_pose_msg.pose.pose.orientation = p.pose.pose.orientation;
-          }
-          else
-          {
-            tf2::Quaternion reliable_q, dq, result_q;
-            reliable_q = tf2::Quaternion(reliable_pose_msg.pose.pose.orientation.x,
-                                         reliable_pose_msg.pose.pose.orientation.y,
-                                         reliable_pose_msg.pose.pose.orientation.z,
-                                         reliable_pose_msg.pose.pose.orientation.w);
-            dq.setRPY(0, 0, pure_odom_delta.v[2]);
-            result_q = reliable_q * dq;
-            reliable_pose_msg.pose.pose.orientation.x = result_q.x();
-            reliable_pose_msg.pose.pose.orientation.y = result_q.y();
-            reliable_pose_msg.pose.pose.orientation.z = result_q.z();
-            reliable_pose_msg.pose.pose.orientation.w = result_q.w();
-          }
+            if (acceptable_x)
+            {
+              reliable_pose_msg.pose.pose.position.x = p.pose.pose.position.x;
+              reliable_pose_msg.pose.pose.position.y = p.pose.pose.position.y;
+            }
+            else
+            {
+              reliable_pose_msg.pose.pose.position.x += pure_odom_delta.v[0];
+              reliable_pose_msg.pose.pose.position.y += pure_odom_delta.v[1];
+            }
 
-          pose_pub_.publish(reliable_pose_msg);
-          broadcastAmclPose(reliable_pose_msg);
-          last_published_pose = reliable_pose_msg;
+            if (acceptable_z)
+            {
+              reliable_pose_msg.pose.pose.orientation = p.pose.pose.orientation;
+            }
+            else
+            {
+              tf2::Quaternion reliable_q, dq, result_q;
+              reliable_q = tf2::Quaternion(reliable_pose_msg.pose.pose.orientation.x,
+                                           reliable_pose_msg.pose.pose.orientation.y,
+                                           reliable_pose_msg.pose.pose.orientation.z,
+                                           reliable_pose_msg.pose.pose.orientation.w);
+              dq.setRPY(0, 0, pure_odom_delta.v[2]);
+              result_q = reliable_q * dq;
+              reliable_pose_msg.pose.pose.orientation.x = result_q.x();
+              reliable_pose_msg.pose.pose.orientation.y = result_q.y();
+              reliable_pose_msg.pose.pose.orientation.z = result_q.z();
+              reliable_pose_msg.pose.pose.orientation.w = result_q.w();
+            }
 
-          pf_vector_t pf_init_pose_mean = pf_vector_zero();
-          pf_matrix_t pf_init_pose_cov = pf_matrix_zero();
-          pf_init_pose_mean.v[0] = last_published_pose.pose.pose.position.x;
-          pf_init_pose_mean.v[1] = last_published_pose.pose.pose.position.y;
-          pf_init_pose_mean.v[2] = tf2::getYaw(last_published_pose.pose.pose.orientation);
-          pf_init_pose_cov.m[0][0] = init_cov_[0];
-          pf_init_pose_cov.m[1][1] = init_cov_[1];
-          pf_init_pose_cov.m[2][2] = init_cov_[2];
-          pf_init(pf_, pf_init_pose_mean, pf_init_pose_cov);
+            pose_pub_.publish(reliable_pose_msg);
+            broadcastAmclPose(reliable_pose_msg);
+            last_published_pose = reliable_pose_msg;
+
+            pf_vector_t pf_init_pose_mean = pf_vector_zero();
+            pf_matrix_t pf_init_pose_cov = pf_matrix_zero();
+            pf_init_pose_mean.v[0] = last_published_pose.pose.pose.position.x;
+            pf_init_pose_mean.v[1] = last_published_pose.pose.pose.position.y;
+            pf_init_pose_mean.v[2] = tf2::getYaw(last_published_pose.pose.pose.orientation);
+            pf_init_pose_cov.m[0][0] = init_cov_[0];
+            pf_init_pose_cov.m[1][1] = init_cov_[1];
+            pf_init_pose_cov.m[2][2] = init_cov_[2];
+            pf_init(pf_, pf_init_pose_mean, pf_init_pose_cov);
+          }
         }
       }
 
