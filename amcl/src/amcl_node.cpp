@@ -82,9 +82,6 @@
 
 using namespace amcl;
 
-double sharedPfWeight = 0;
-double sharedUnlikelyPfCount = 0;
-
 // Pose hypothesis
 typedef struct
 {
@@ -199,8 +196,6 @@ class AmclNode
 
     int diff_count_;
     ros::Publisher diff_count_pub_;
-    ros::Publisher pf_weight_pub_;
-    ros::Publisher unlikely_pf_count_pub_;
     ros::Time latest_reliable_pose_time_;
 
     bool use_map_topic_;
@@ -554,8 +549,6 @@ AmclNode::AmclNode() :
   
   diff_count_ = 0;
   diff_count_pub_ = nh_.advertise<std_msgs::Float32>("diff_count", 2, true);
-  pf_weight_pub_ = nh_.advertise<std_msgs::Float32>("pf_weight", 2, true);
-  unlikely_pf_count_pub_ = nh_.advertise<std_msgs::Float32>("unlikely_pf_count", 2, true);
 
   diagnosic_updater_.setHardwareID("None");
   diagnosic_updater_.add("Standard deviation", this, &AmclNode::standardDeviationDiagnostics);
@@ -1601,17 +1594,13 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         bool acceptable_z = std::fabs(dz) < odom_amcl_z_thre_;
 
         // For debug
-        std_msgs::Float32 dx_msg, dz_msg, diff_count_msg, pf_weight_msg, unlikely_pf_count_msg;
+        std_msgs::Float32 dx_msg, dz_msg, diff_count_msg;
         dx_msg.data = dx;
         dz_msg.data = dz;
         diff_count_msg.data = float(diff_count_);
-        pf_weight_msg.data = float(sharedPfWeight);
-        unlikely_pf_count_msg.data = float(sharedUnlikelyPfCount);
         odom_amcl_diff_x_pub_.publish(dx_msg);
         odom_amcl_diff_z_pub_.publish(dz_msg);
         diff_count_pub_.publish(diff_count_msg);
-        pf_weight_pub_.publish(pf_weight_msg);
-        unlikely_pf_count_pub_.publish(unlikely_pf_count_msg);
 
         if (diff_count_ >= odom_amcl_diff_count_thre_) diff_count_ = 0;
         if (acceptable_x && acceptable_z)
