@@ -256,11 +256,11 @@ class AmclNode
     
 
     // To calculate the displacement from Odom and compare it with the displacement from AMCL
-    pf_vector_t getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now, const ros::Time& get_odom_time);
+    pf_vector_t getOdomMovement(const pf_vector_t& current_pose, const ros::Time& now, const ros::Time& base_time);
 
     // To calculate the displacement from Amcl and compare it with the displacement from Odom
     pf_vector_t getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_pose_msg,
-                                  ros::Time& get_odom_time,
+                                  ros::Time& base_time,
                                   geometry_msgs::PoseWithCovarianceStamped& reliable_pose_msg,
                                   const ros::Time& past_time);
 
@@ -1093,8 +1093,8 @@ AmclNode::getOdomPose(geometry_msgs::PoseStamped& odom_pose,
 }
 
 pf_vector_t
-AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now,
-                              const ros::Time& get_odom_time)
+AmclNode::getOdomMovement(const pf_vector_t& current_pose, const ros::Time& now,
+                              const ros::Time& base_time)
 {
   // To match the frame of amcl_base_link
   geometry_msgs::TransformStamped tf_now, tf_past;
@@ -1105,12 +1105,12 @@ AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now,
   }
   catch (tf2::TransformException& ex)
   {
-    ROS_WARN("Could not get now odom tf: %s", ex.what());
+    ROS_WARN("Could not get current odom tf: %s", ex.what());
     return move;
   }
   try
   {
-    tf_past = tf_->lookupTransform(global_frame_id_, base_frame_id_, get_odom_time);
+    tf_past = tf_->lookupTransform(global_frame_id_, base_frame_id_, base_time);
   }
   catch (tf2::TransformException& ex)
   {
@@ -1118,7 +1118,7 @@ AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now,
     return move;
   }
 
-  ros::Duration odom_dt = now - tf_past.header.stamp;
+  ros::Duration odom_dt = tf_now.header.stamp - tf_past.header.stamp;
   ROS_DEBUG("getOdomMovement odom_dt: %.3f", odom_dt.toSec());
 
   move.v[0] = tf_now.transform.translation.x - tf_past.transform.translation.x;
@@ -1130,7 +1130,7 @@ AmclNode::getOdomMovement(const pf_vector_t& now_pose, const ros::Time& now,
 
 pf_vector_t
 AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_pose_msg,
-                              ros::Time& get_odom_time,
+                              ros::Time& base_time,
                               geometry_msgs::PoseWithCovarianceStamped& reliable_pose_msg,
                               const ros::Time& past_time = ros::Time(0))
 {
@@ -1154,12 +1154,12 @@ AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_po
   ros::Duration amcl_dt = now - tf_past.header.stamp;
   ROS_DEBUG("getAmclMovement amcl_dt: %.3f", amcl_dt.toSec());
 
-  reliable_pose_msg = now_pose_msg;
+  reliable_pose_msg.header = now_pose_msg.header;
   reliable_pose_msg.pose.pose.position.x = tf_past.transform.translation.x;
   reliable_pose_msg.pose.pose.position.y = tf_past.transform.translation.y;
   reliable_pose_msg.pose.pose.orientation = tf_past.transform.rotation;
 
-  get_odom_time = tf_past.header.stamp;
+  base_time = tf_past.header.stamp;
   move.v[0] = now_pose.v[0] - tf_past.transform.translation.x;
   move.v[1] = now_pose.v[1] - tf_past.transform.translation.y;
   move.v[2] = angle_diff(now_pose.v[2], tf2::getYaw(tf_past.transform.rotation));
@@ -1589,11 +1589,11 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       else
       {
         pf_vector_t pure_odom_delta, pure_amcl_delta;
-        ros::Time get_odom_time;
+        ros::Time base_time;
         geometry_msgs::PoseWithCovarianceStamped reliable_pose_msg;
 
-        pure_amcl_delta = getAmclMovement(p, get_odom_time, reliable_pose_msg);
-        pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, get_odom_time);
+        pure_amcl_delta = getAmclMovement(p, base_time, reliable_pose_msg);
+        pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, base_time);
         double dx = sqrt(std::pow(pure_odom_delta.v[0] - pure_amcl_delta.v[0], 2) +
                          std::pow(pure_odom_delta.v[1] - pure_amcl_delta.v[1], 2));
         double dz = angle_diff(pure_odom_delta.v[2], pure_amcl_delta.v[2]);
@@ -1613,7 +1613,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         pf_weight_pub_.publish(pf_weight_msg);
         unlikely_pf_count_pub_.publish(unlikely_pf_count_msg);
 
-        if (diff_count_ == odom_amcl_diff_count_thre_) diff_count_ = 0;
+        if (diff_count_ >= odom_amcl_diff_count_thre_) diff_count_ = 0;
         if (acceptable_x && acceptable_z)
         {
           pose_pub_.publish(p);
@@ -1623,7 +1623,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         }
         else
         {
-          if (diff_count_ == 0) latest_reliable_pose_time_ = get_odom_time;
+          if (diff_count_ == 0) latest_reliable_pose_time_ = base_time;
           if (++diff_count_ < odom_amcl_diff_count_thre_)
           {
             pose_pub_.publish(p);
@@ -1631,9 +1631,9 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
             last_published_pose = p;
           }
           else{
-            ros::Time get_odom_correction_time;
-            pure_amcl_delta = getAmclMovement(p, get_odom_correction_time, reliable_pose_msg, latest_reliable_pose_time_);
-            pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, get_odom_correction_time);
+            ros::Time base_correction_time;
+            pure_amcl_delta = getAmclMovement(p, base_correction_time, reliable_pose_msg, latest_reliable_pose_time_);
+            pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, base_correction_time);
 
             if (acceptable_x)
             {
