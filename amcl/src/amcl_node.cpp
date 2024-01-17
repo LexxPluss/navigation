@@ -1633,7 +1633,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
           else{
             ros::Time base_correction_time;
             pure_amcl_delta = getAmclMovement(p, base_correction_time, reliable_pose_msg, latest_reliable_pose_time_);
-            pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, base_correction_time);
+            pure_odom_delta = getOdomMovement(pose, p.header.stamp, base_correction_time);
 
             if (acceptable_x)
             {
