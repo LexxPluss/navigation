@@ -274,9 +274,7 @@ class AmclNode
     ros::NodeHandle nh_;
     ros::NodeHandle private_nh_;
     ros::Publisher pose_pub_;
-    ros::Publisher debug_pose_pub_;
     ros::Publisher particlecloud_pub_;
-    ros::Publisher debug_particlecloud_pub_;
     ros::Publisher odom_amcl_diff_x_pub_;
     ros::Publisher odom_amcl_diff_z_pub_;
     ros::ServiceServer global_loc_srv_;
@@ -515,9 +513,7 @@ AmclNode::AmclNode() :
   tfl_.reset(new tf2_ros::TransformListener(*tf_));
 
   pose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("amcl_pose", 2, true);
-  debug_pose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("debug_amcl_pose", 2, true);
   particlecloud_pub_ = nh_.advertise<geometry_msgs::PoseArray>("particlecloud", 2, true);
-  debug_particlecloud_pub_ = nh_.advertise<geometry_msgs::PoseArray>("particlecloud", 2, true);
   odom_amcl_diff_x_pub_ = nh_.advertise<std_msgs::Float32>("odom_amcl_diff_x", 2, true);
   odom_amcl_diff_z_pub_ = nh_.advertise<std_msgs::Float32>("odom_amcl_diff_z", 2, true);
   global_loc_srv_ = nh_.advertiseService("global_localization", 
@@ -1497,7 +1493,6 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       if(d > particlecloud_pub_interval_)
       {
         particlecloud_pub_.publish(cloud_msg);
-        // debug_particlecloud_pub_.publish(cloud_msg);
         last_particlecloud_published_ts_ = ros::Time::now();
       }
     }
@@ -1618,8 +1613,6 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         pf_weight_pub_.publish(pf_weight_msg);
         unlikely_pf_count_pub_.publish(unlikely_pf_count_msg);
 
-        // acceptable_x = true;
-        // acceptable_z = true;
         if (diff_count_ == odom_amcl_diff_count_thre_) diff_count_ = 0;
         if (acceptable_x && acceptable_z)
         {
@@ -1641,9 +1634,6 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
             ros::Time get_odom_correction_time;
             pure_amcl_delta = getAmclMovement(p, get_odom_correction_time, reliable_pose_msg, latest_reliable_pose_time_);
             pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, get_odom_correction_time);
-            ROS_DEBUG("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nlaser scan time: %f", laser_scan->header.stamp.toSec());
-            ROS_DEBUG("laser scan time: %f", laser_scan->header.stamp.toSec());
-            ROS_DEBUG("correction odom time: %f", get_odom_correction_time.toSec());
 
             if (acceptable_x)
             {
