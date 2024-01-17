@@ -1593,7 +1593,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         geometry_msgs::PoseWithCovarianceStamped reliable_pose_msg;
 
         pure_amcl_delta = getAmclMovement(p, base_time, reliable_pose_msg);
-        pure_odom_delta = getOdomMovement(pose, laser_scan->header.stamp, base_time);
+        pure_odom_delta = getOdomMovement(pose, p.header.stamp, base_time);
         double dx = sqrt(std::pow(pure_odom_delta.v[0] - pure_amcl_delta.v[0], 2) +
                          std::pow(pure_odom_delta.v[1] - pure_amcl_delta.v[1], 2));
         double dz = angle_diff(pure_odom_delta.v[2], pure_amcl_delta.v[2]);
