@@ -310,9 +310,12 @@ class AmclNode
 
     // odom correction
     bool odom_correction_;
+    pf_vector_t pure_amcl_delta_sum_;
+    pf_vector_t pure_odom_delta_sum_;
     double odom_amcl_x_thre_;
     double odom_amcl_z_thre_;
     int odom_amcl_diff_count_thre_;
+    
 
     void reconfigureCB(amcl::AMCLConfig &config, uint32_t level);
 
@@ -476,7 +479,7 @@ AmclNode::AmclNode() :
   private_nh_.param("recovery_alpha_fast", alpha_fast_, 0.1);
   private_nh_.param("tf_broadcast", tf_broadcast_, true);
 
-  // odom_correction
+  // odom correction
   private_nh_.param("odom_correction", odom_correction_, false);
   private_nh_.param("odom_amcl_x_thre", odom_amcl_x_thre_, 0.2);
   private_nh_.param("odom_amcl_z_thre", odom_amcl_z_thre_, 0.01);
@@ -546,7 +549,9 @@ AmclNode::AmclNode() :
                                        boost::bind(&AmclNode::checkLaserReceived, this, _1));
   particlecloud_pub_interval_ = ros::Duration(1.0);
   last_particlecloud_published_ts_ = ros::Time::now();
-  
+
+  pure_amcl_delta_sum_ = pf_vector_zero();
+  pure_odom_delta_sum_ = pf_vector_zero(); 
   diff_count_ = 0;
   diff_count_pub_ = nh_.advertise<std_msgs::Float32>("diff_count", 2, true);
 
@@ -1572,8 +1577,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
          }
        */
 
-
-      // odom_correction
+      // odom correction
       if (!odom_correction_)
       {
         pose_pub_.publish(p);
@@ -1587,11 +1591,28 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
 
         pure_amcl_delta = getAmclMovement(p, base_time, reliable_pose_msg);
         pure_odom_delta = getOdomMovement(pose, p.header.stamp, base_time);
-        double dx = sqrt(std::pow(pure_odom_delta.v[0] - pure_amcl_delta.v[0], 2) +
-                         std::pow(pure_odom_delta.v[1] - pure_amcl_delta.v[1], 2));
-        double dz = angle_diff(pure_odom_delta.v[2], pure_amcl_delta.v[2]);
-        bool acceptable_x = std::fabs(dx) < odom_amcl_x_thre_;
-        bool acceptable_z = std::fabs(dz) < odom_amcl_z_thre_;
+        
+        // When the tf of map-odom is not obtained in time, the tf of map-baselink is not obtained as well,
+        // so pure_odom_delta is 0. In that case, pure_amcl_delta is substituted for pure_odom_delta
+        // as a bitter measure.
+        if (pure_odom_delta.v[0] == 0.0 && pure_odom_delta.v[1] == 0.0 && pure_odom_delta.v[2] == 0.0)
+          pure_odom_delta = pure_amcl_delta;
+
+        // update sum
+        pure_amcl_delta_sum_.v[0] += pure_amcl_delta.v[0];
+        pure_amcl_delta_sum_.v[1] += pure_amcl_delta.v[1];
+        pure_amcl_delta_sum_.v[2] += pure_amcl_delta.v[2];
+        pure_amcl_delta_sum_.v[2] = normalize(pure_amcl_delta_sum_.v[2]);
+        pure_odom_delta_sum_.v[0] += pure_odom_delta.v[0];
+        pure_odom_delta_sum_.v[1] += pure_odom_delta.v[1];
+        pure_odom_delta_sum_.v[2] += pure_odom_delta.v[2];
+        pure_odom_delta_sum_.v[2] = normalize(pure_odom_delta_sum_.v[2]);
+
+        double dx = sqrt(std::pow(pure_odom_delta_sum_.v[0] - pure_amcl_delta_sum_.v[0], 2) +
+                         std::pow(pure_odom_delta_sum_.v[1] - pure_amcl_delta_sum_.v[1], 2));
+        double dz = angle_diff(pure_odom_delta_sum_.v[2], pure_amcl_delta_sum_.v[2]);
+        bool acceptable_x = std::fabs(dx) < odom_amcl_x_thre_ * (diff_count_ + 1);
+        bool acceptable_z = std::fabs(dz) < odom_amcl_z_thre_ * (diff_count_ + 1);
 
         // For debug
         std_msgs::Float32 dx_msg, dz_msg, diff_count_msg;
@@ -1602,13 +1623,20 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         odom_amcl_diff_z_pub_.publish(dz_msg);
         diff_count_pub_.publish(diff_count_msg);
 
-        if (diff_count_ >= odom_amcl_diff_count_thre_) diff_count_ = 0;
+        if (diff_count_ >= odom_amcl_diff_count_thre_)
+        {
+          diff_count_ = 0;
+          pure_amcl_delta_sum_ = pf_vector_zero();
+          pure_odom_delta_sum_ = pf_vector_zero();
+        }
         if (acceptable_x && acceptable_z)
         {
           pose_pub_.publish(p);
           broadcastAmclPose(p);
           last_published_pose = p;
           diff_count_ = 0;
+          pure_amcl_delta_sum_ = pf_vector_zero();
+          pure_odom_delta_sum_ = pf_vector_zero();
         }
         else
         {
@@ -1619,10 +1647,11 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
             broadcastAmclPose(p);
             last_published_pose = p;
           }
-          else{
+          else
+          {
             ros::Time base_correction_time;
-            pure_amcl_delta = getAmclMovement(p, base_correction_time, reliable_pose_msg, latest_reliable_pose_time_);
-            pure_odom_delta = getOdomMovement(pose, p.header.stamp, base_correction_time);
+            pure_amcl_delta_sum_ = getAmclMovement(p, base_correction_time, reliable_pose_msg, latest_reliable_pose_time_);
+            pure_odom_delta_sum_ = getOdomMovement(pose, p.header.stamp, base_correction_time);
 
             if (acceptable_x)
             {
@@ -1631,8 +1660,8 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
             }
             else
             {
-              reliable_pose_msg.pose.pose.position.x += pure_odom_delta.v[0];
-              reliable_pose_msg.pose.pose.position.y += pure_odom_delta.v[1];
+              reliable_pose_msg.pose.pose.position.x += pure_odom_delta_sum_.v[0];
+              reliable_pose_msg.pose.pose.position.y += pure_odom_delta_sum_.v[1];
             }
 
             if (acceptable_z)
@@ -1646,7 +1675,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
                                            reliable_pose_msg.pose.pose.orientation.y,
                                            reliable_pose_msg.pose.pose.orientation.z,
                                            reliable_pose_msg.pose.pose.orientation.w);
-              dq.setRPY(0, 0, pure_odom_delta.v[2]);
+              dq.setRPY(0, 0, pure_odom_delta_sum_.v[2]);
               result_q = reliable_q * dq;
               reliable_pose_msg.pose.pose.orientation.x = result_q.x();
               reliable_pose_msg.pose.pose.orientation.y = result_q.y();
