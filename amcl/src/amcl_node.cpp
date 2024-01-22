@@ -315,7 +315,7 @@ class AmclNode
     double odom_amcl_x_thre_;
     double odom_amcl_z_thre_;
     int odom_amcl_diff_count_thre_;
-    
+    // ros::Time init_time_ = ros::Time(1703055069.0);
 
     void reconfigureCB(amcl::AMCLConfig &config, uint32_t level);
 
@@ -1101,11 +1101,19 @@ AmclNode::getOdomMovement(const pf_vector_t& current_pose, const ros::Time& now,
   {
     tf_now = tf_->lookupTransform(global_frame_id_, base_frame_id_, now);
   }
-  catch (tf2::TransformException& ex)
+  catch (tf2::TransformException& ex1)
   {
-    ROS_WARN("Could not get current odom tf: %s", ex.what());
-    return move;
+    try
+    {
+      tf_now = tf_->lookupTransform(global_frame_id_, base_frame_id_, ros::Time(0));
+    }
+    catch(const std::exception& ex2)
+    {
+      ROS_WARN("Could not get current odom tf: %s", ex2.what());
+      return move;
+    }
   }
+
   try
   {
     tf_past = tf_->lookupTransform(global_frame_id_, base_frame_id_, base_time);
@@ -1578,7 +1586,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
        */
 
       // odom correction
-      if (!odom_correction_)
+      if (!odom_correction_/* || ros::Time::now() - init_time_ < ros::Duration(10.0)*/)
       {
         pose_pub_.publish(p);
         last_published_pose = p;
@@ -1591,22 +1599,16 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
 
         pure_amcl_delta = getAmclMovement(p, base_time, reliable_pose_msg);
         pure_odom_delta = getOdomMovement(pose, p.header.stamp, base_time);
-        
-        // When the tf of map-odom is not obtained in time, the tf of map-baselink is not obtained as well,
-        // so pure_odom_delta is 0. In that case, pure_amcl_delta is substituted for pure_odom_delta
-        // as a bitter measure.
-        if (pure_odom_delta.v[0] == 0.0 && pure_odom_delta.v[1] == 0.0 && pure_odom_delta.v[2] == 0.0)
-          pure_odom_delta = pure_amcl_delta;
 
         // update sum
         pure_amcl_delta_sum_.v[0] += pure_amcl_delta.v[0];
         pure_amcl_delta_sum_.v[1] += pure_amcl_delta.v[1];
         pure_amcl_delta_sum_.v[2] += pure_amcl_delta.v[2];
-        pure_amcl_delta_sum_.v[2] = normalize(pure_amcl_delta_sum_.v[2]);
+        pure_amcl_delta_sum_.v[2]  = normalize(pure_amcl_delta_sum_.v[2]);
         pure_odom_delta_sum_.v[0] += pure_odom_delta.v[0];
         pure_odom_delta_sum_.v[1] += pure_odom_delta.v[1];
         pure_odom_delta_sum_.v[2] += pure_odom_delta.v[2];
-        pure_odom_delta_sum_.v[2] = normalize(pure_odom_delta_sum_.v[2]);
+        pure_odom_delta_sum_.v[2]  = normalize(pure_odom_delta_sum_.v[2]);
 
         double dx = sqrt(std::pow(pure_odom_delta_sum_.v[0] - pure_amcl_delta_sum_.v[0], 2) +
                          std::pow(pure_odom_delta_sum_.v[1] - pure_amcl_delta_sum_.v[1], 2));
@@ -1614,21 +1616,6 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         bool acceptable_x = std::fabs(dx) < odom_amcl_x_thre_ * (diff_count_ + 1);
         bool acceptable_z = std::fabs(dz) < odom_amcl_z_thre_ * (diff_count_ + 1);
 
-        // For debug
-        std_msgs::Float32 dx_msg, dz_msg, diff_count_msg;
-        dx_msg.data = dx;
-        dz_msg.data = dz;
-        diff_count_msg.data = float(diff_count_);
-        odom_amcl_diff_x_pub_.publish(dx_msg);
-        odom_amcl_diff_z_pub_.publish(dz_msg);
-        diff_count_pub_.publish(diff_count_msg);
-
-        if (diff_count_ >= odom_amcl_diff_count_thre_)
-        {
-          diff_count_ = 0;
-          pure_amcl_delta_sum_ = pf_vector_zero();
-          pure_odom_delta_sum_ = pf_vector_zero();
-        }
         if (acceptable_x && acceptable_z)
         {
           pose_pub_.publish(p);
@@ -1698,6 +1685,24 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
             pf_init(pf_, pf_init_pose_mean, pf_init_pose_cov);
           }
         }
+
+        // Debug
+        std_msgs::Float32 dx_msg, dz_msg, diff_count_msg;
+        dx_msg.data = dx;
+        dz_msg.data = dz;
+        diff_count_msg.data = float(diff_count_);
+        odom_amcl_diff_x_pub_.publish(dx_msg);
+        odom_amcl_diff_z_pub_.publish(dz_msg);
+        diff_count_pub_.publish(diff_count_msg); 
+
+        // Initialze diff_count_ after excuting odom ocrrection
+        if (diff_count_ >= odom_amcl_diff_count_thre_)
+        {
+          diff_count_ = 0;
+          pure_amcl_delta_sum_ = pf_vector_zero();
+          pure_odom_delta_sum_ = pf_vector_zero();
+        }
+
       }
 
       ROS_DEBUG("New pose: %6.3f %6.3f %6.3f",
