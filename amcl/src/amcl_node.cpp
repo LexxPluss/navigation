@@ -1103,15 +1103,17 @@ AmclNode::getOdomMovement(const pf_vector_t& current_pose, const ros::Time& now,
   }
   catch (tf2::TransformException& ex1)
   {
+    ROS_INFO("Try to get the latest odom tf becase could not get current odom tf: %s", ex1.what());
     try
     {
       tf_now = tf_->lookupTransform(global_frame_id_, base_frame_id_, ros::Time(0));
     }
     catch(const std::exception& ex2)
     {
-      ROS_WARN("Could not get current odom tf: %s", ex2.what());
+      ROS_WARN("Could not get the latest odom tf: %s", ex2.what());
       return move;
     }
+    ROS_INFO("Delay: %.3f", (now - tf_now.header.stamp).toSec());
   }
 
   try
@@ -1125,11 +1127,12 @@ AmclNode::getOdomMovement(const pf_vector_t& current_pose, const ros::Time& now,
   }
 
   ros::Duration odom_dt = tf_now.header.stamp - tf_past.header.stamp;
-  ROS_DEBUG("getOdomMovement odom_dt: %.3f", odom_dt.toSec());
+  ROS_INFO("getOdomMovement odom_dt: %.3f", odom_dt.toSec());
 
   move.v[0] = tf_now.transform.translation.x - tf_past.transform.translation.x;
   move.v[1] = tf_now.transform.translation.y - tf_past.transform.translation.y;
   move.v[2] = angle_diff(tf2::getYaw(tf_now.transform.rotation), tf2::getYaw(tf_past.transform.rotation));
+  ROS_INFO("getOdomMovement move: %.3f, %.3f, %.3f", move.v[0], move.v[1], move.v[2]);
 
   return move;
 }
@@ -1158,7 +1161,7 @@ AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_po
 
   ros::Time now = now_pose_msg.header.stamp;
   ros::Duration amcl_dt = now - tf_past.header.stamp;
-  ROS_DEBUG("getAmclMovement amcl_dt: %.3f", amcl_dt.toSec());
+  ROS_INFO("getAmclMovement amcl_dt: %.3f", amcl_dt.toSec());
 
   reliable_pose_msg.header = now_pose_msg.header;
   reliable_pose_msg.pose.pose.position.x = tf_past.transform.translation.x;
@@ -1169,6 +1172,8 @@ AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_po
   move.v[0] = now_pose.v[0] - tf_past.transform.translation.x;
   move.v[1] = now_pose.v[1] - tf_past.transform.translation.y;
   move.v[2] = angle_diff(now_pose.v[2], tf2::getYaw(tf_past.transform.rotation));
+  ROS_INFO("getAmclMovement move: %.3f, %.3f, %.3f", move.v[0], move.v[1], move.v[2]);
+
   return move;
 }
 
@@ -1627,6 +1632,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         }
         else
         {
+          ROS_INFO("acceptable_x: %d, acceptable_z: %d", acceptable_x, acceptable_z);
           if (diff_count_ == 0) latest_reliable_pose_time_ = base_time;
           if (++diff_count_ < odom_amcl_diff_count_thre_)
           {
