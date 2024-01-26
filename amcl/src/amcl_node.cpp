@@ -1694,10 +1694,9 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         // initialize
         if (!is_init_odom_correction_)
         {
-          current_base_link_pose.pose.pose.position.x = -7.11372;
-          current_base_link_pose.pose.pose.position.y = 3.30607;
-          // convert yaw to quaternion. yaw is 1.14124 
-          current_base_link_pose.pose.pose.orientation = tf2::toMsg(tf2::Quaternion(0, 0, 0.5401539, 0.8415662));
+          // current_base_link_pose.pose.pose.position.x = -7.11372;
+          // current_base_link_pose.pose.pose.position.y = 3.30607;
+          // current_base_link_pose.pose.pose.orientation = tf2::toMsg(tf2::Quaternion(0, 0, 0.5401539, 0.8415662));
           latest_base_link_pose_ = current_base_link_pose;
           latest_amcl_pose_ = p;
           reliable_base_link_pose_ = current_base_link_pose;
