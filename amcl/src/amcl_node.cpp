@@ -322,7 +322,7 @@ class AmclNode
     double odom_amcl_x_thre_;
     double odom_amcl_z_thre_;
     int odom_amcl_diff_count_thre_;
-    // ros::Time init_time_ = ros::Time(1703055069.0);
+    ros::Time init_time_ = ros::Time(1706078715.0);
 
     void reconfigureCB(amcl::AMCLConfig &config, uint32_t level);
 
@@ -1677,7 +1677,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
 
       // odom correction
       // TODO: init latest_amcl_pose_ and latest_base_link_pose_
-      if (!odom_correction_)
+      if (!odom_correction_ /* || ros::Time::now() - init_time_ < ros::Duration(20)*/)
       {
         pose_pub_.publish(p);
         last_published_pose = p;
