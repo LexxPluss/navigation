@@ -196,6 +196,8 @@ namespace dwa_local_planner {
       double latch_unlock_distance_;
       double cargo_timeout_sec_;
 
+      double cargo_limit_angle_deg_;
+      double current_cargo_angle_;
       bool is_cargo_enabled_;
       ros::Time cargo_angle_recv_time_;
   };

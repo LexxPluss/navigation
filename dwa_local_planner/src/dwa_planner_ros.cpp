@@ -158,6 +158,8 @@ namespace dwa_local_planner {
       private_nh.param("cargo_timeout_sec", this->cargo_timeout_sec_, 1.0);
       private_nh.param("backward_rotate_time", this->backward_rotate_time_, 3.0);
 
+      private_nh.param("cargo_limit_angle_deg", this->cargo_limit_angle_deg_, 90.0);
+
       this->is_actuator_connect_ = false;
       this->rotate_to_goal_ = false;
       this->is_cargo_enabled_ = false;
@@ -473,6 +475,29 @@ namespace dwa_local_planner {
       double turn_turget_y = turn_target_pose.pose.position.y;
 
       double turn_turget_th = std::atan2(turn_turget_y - current_y, turn_turget_x - current_x);
+      double current_th = tf2::getYaw(this->current_pose_.pose.orientation);
+
+
+      if (this->is_cargo_enabled_)
+      {
+        // check target cargo angle
+        auto normalize = [](double angle) {
+          while (angle > M_PI) angle -= 2 * M_PI;
+          while (angle < -M_PI) angle += 2 * M_PI;
+          return angle;
+        };
+
+        double relative_cargo_angle_when_turned = normalize(this->current_cargo_angle_ - (turn_turget_th - current_th));
+
+        if (std::abs(relative_cargo_angle_when_turned) < this->cargo_limit_angle_deg_) {
+          if (relative_cargo_angle_when_turned > 0) {
+            turn_turget_th = normalize(current_th + this->current_cargo_angle_ - this->cargo_limit_angle_deg_);
+          } else {
+            turn_turget_th = normalize(current_th + this->current_cargo_angle_ + this->cargo_limit_angle_deg_);
+          }
+        }
+      }
+
       base_local_planner::LocalPlannerLimits limits = planner_util_.getCurrentLimits();
 
       bool was_rotate = startLatchedStopRotateController_.rotateToGoal(
@@ -485,7 +510,6 @@ namespace dwa_local_planner {
         limits,
         boost::bind(&DWAPlanner::checkTrajectory, dp_, _1, _2, _3));
 
-      double current_th = tf2::getYaw(this->current_pose_.pose.orientation);
       if (!was_rotate || std::abs(current_th - turn_turget_th) < (5.0 * M_PI / 180.0))
       {
         this->rotate_to_goal_ = false;
@@ -522,6 +546,7 @@ namespace dwa_local_planner {
 
   void DWAPlannerROS::cargo_angle_callback(const std_msgs::Float64::ConstPtr& msg)
   {
+    this->current_cargo_angle_ = msg->data;
     this->dp_->setCargoAngle(msg->data);
     this->goalLatchedStopRotateController_.setCargoAngle(msg->data);
     this->startLatchedStopRotateController_.setCargoAngle(msg->data);
