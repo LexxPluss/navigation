@@ -488,12 +488,13 @@ namespace dwa_local_planner {
         };
 
         double relative_cargo_angle_when_turned = normalize(this->current_cargo_angle_ - (turn_turget_th - current_th));
+        double cargo_limit_angle_rad = this->cargo_limit_angle_deg_ * M_PI / 180.0;
 
-        if (std::abs(relative_cargo_angle_when_turned) < this->cargo_limit_angle_deg_) {
+        if (std::abs(relative_cargo_angle_when_turned) < cargo_limit_angle_rad) {
           if (relative_cargo_angle_when_turned > 0) {
-            turn_turget_th = normalize(current_th + this->current_cargo_angle_ - this->cargo_limit_angle_deg_);
+            turn_turget_th = normalize(current_th + this->current_cargo_angle_ - cargo_limit_angle_rad);
           } else {
-            turn_turget_th = normalize(current_th + this->current_cargo_angle_ + this->cargo_limit_angle_deg_);
+            turn_turget_th = normalize(current_th + this->current_cargo_angle_ + cargo_limit_angle_rad);
           }
         }
       }
