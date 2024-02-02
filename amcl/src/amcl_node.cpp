@@ -196,7 +196,7 @@ class AmclNode
 
     int diff_count_;
     ros::Publisher diff_count_pub_;
-    geometry_msgs::PoseWithCovarianceStamped latest_amcl_pose_, latest_base_link_pose_, reliable_amcl_pose_, reliable_base_link_pose_;
+    geometry_msgs::PoseWithCovarianceStamped previous_amcl_pose_, previous_base_link_pose_, reliable_amcl_pose_, reliable_base_link_pose_;
 
     bool use_map_topic_;
     bool first_map_only_;
@@ -549,12 +549,12 @@ AmclNode::AmclNode() :
 
   // odom correction
   pure_amcl_delta_sum_ = pf_vector_zero();
-  pure_odom_delta_sum_ = pf_vector_zero(); 
+  pure_odom_delta_sum_ = pf_vector_zero();
   diff_count_ = 0;
   is_init_odom_correction_ = false;
   diff_count_pub_ = nh_.advertise<std_msgs::Float32>("diff_count", 2, true);
-  latest_amcl_pose_ = geometry_msgs::PoseWithCovarianceStamped();
-  latest_base_link_pose_ = geometry_msgs::PoseWithCovarianceStamped();
+  previous_amcl_pose_ = geometry_msgs::PoseWithCovarianceStamped();
+  previous_base_link_pose_ = geometry_msgs::PoseWithCovarianceStamped();
 
 
   diagnosic_updater_.setHardwareID("None");
@@ -1093,53 +1093,6 @@ AmclNode::getOdomPose(geometry_msgs::PoseStamped& odom_pose,
 }
 
 pf_vector_t
-AmclNode::getOdomMovement(const pf_vector_t& current_pose, const ros::Time& now,
-                              const ros::Time& base_time)
-{
-  // To match the frame of amcl_base_link
-  geometry_msgs::TransformStamped tf_now, tf_past;
-  pf_vector_t move = pf_vector_zero();
-  try
-  {
-    tf_now = tf_->lookupTransform(global_frame_id_, base_frame_id_, now);
-  }
-  catch (tf2::TransformException& ex1)
-  {
-    ROS_INFO("Try to get the latest odom tf becase could not get current odom tf: %s", ex1.what());
-    try
-    {
-      tf_now = tf_->lookupTransform(global_frame_id_, base_frame_id_, ros::Time(0));
-    }
-    catch(const std::exception& ex2)
-    {
-      ROS_WARN("Could not get the latest odom tf: %s", ex2.what());
-      return move;
-    }
-    ROS_INFO("Delay: %.3f", (now - tf_now.header.stamp).toSec());
-  }
-
-  try
-  {
-    tf_past = tf_->lookupTransform(global_frame_id_, base_frame_id_, base_time);
-  }
-  catch (tf2::TransformException& ex)
-  {
-    ROS_WARN("Could not get past odom tf: %s", ex.what());
-    return move;
-  }
-
-  ros::Duration odom_dt = tf_now.header.stamp - tf_past.header.stamp;
-  ROS_INFO("getOdomMovement odom_dt: %.3f", odom_dt.toSec());
-
-  move.v[0] = tf_now.transform.translation.x - tf_past.transform.translation.x;
-  move.v[1] = tf_now.transform.translation.y - tf_past.transform.translation.y;
-  move.v[2] = angle_diff(tf2::getYaw(tf_now.transform.rotation), tf2::getYaw(tf_past.transform.rotation));
-  ROS_INFO("getOdomMovement move: %.3f, %.3f, %.3f", move.v[0], move.v[1], move.v[2]);
-
-  return move;
-}
-
-pf_vector_t
 AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& current_pose_msg,
                           const geometry_msgs::PoseWithCovarianceStamped& past_pose_msg)
 {
@@ -1183,13 +1136,14 @@ AmclNode::getCurrentBaseLinkPose(ros::Time current_time)
     ROS_INFO("amcl: Delay: %.3f", (current_time - current_tf.header.stamp).toSec());
   }
 
-  geometry_msgs::PoseWithCovarianceStamped latest_base_link_pose_msg;
-  latest_base_link_pose_msg.header.stamp = current_tf.header.stamp;
-  latest_base_link_pose_msg.pose.pose.position.x = current_tf.transform.translation.x;
-  latest_base_link_pose_msg.pose.pose.position.y = current_tf.transform.translation.y;
-  latest_base_link_pose_msg.pose.pose.orientation = current_tf.transform.rotation;
-  return latest_base_link_pose_msg;
+  geometry_msgs::PoseWithCovarianceStamped current_base_link_pose_msg;
+  current_base_link_pose_msg.header.stamp = current_tf.header.stamp;
+  current_base_link_pose_msg.pose.pose.position.x = current_tf.transform.translation.x;
+  current_base_link_pose_msg.pose.pose.position.y = current_tf.transform.translation.y;
+  current_base_link_pose_msg.pose.pose.orientation = current_tf.transform.rotation;
+  return current_base_link_pose_msg;
 }
+
 pf_vector_t
 AmclNode::getOdomMovement(const geometry_msgs::PoseWithCovarianceStamped& current_pose_msg,
                           const geometry_msgs::PoseWithCovarianceStamped& past_pose_msg)
@@ -1211,60 +1165,6 @@ AmclNode::getOdomMovement(const geometry_msgs::PoseWithCovarianceStamped& curren
   ROS_INFO("amcl: getOdomMovement move: %.3f, %.3f, %.3f", move.v[0], move.v[1], move.v[2]);
   return move;
 }
-
-pf_vector_t
-AmclNode::getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_pose_msg,
-                              ros::Time& base_time,
-                              geometry_msgs::PoseWithCovarianceStamped& reliable_pose_msg,
-                              const ros::Time& past_time = ros::Time(0))
-{
-  pf_vector_t now_pose;
-  now_pose.v[0] = now_pose_msg.pose.pose.position.x;
-  now_pose.v[1] = now_pose_msg.pose.pose.position.y;
-  now_pose.v[2] = tf2::getYaw(now_pose_msg.pose.pose.orientation);
-  geometry_msgs::TransformStamped tf_past;
-  pf_vector_t move = pf_vector_zero();
-  try
-  {
-    tf_past = tf_->lookupTransform(global_frame_id_, amcl_base_frame_id_, past_time);
-  }
-  catch (tf2::TransformException& e)
-  {
-    ROS_WARN("Could not get past amcl_baselink: %s", e.what());
-    return move;
-  }
-
-  ros::Time now = now_pose_msg.header.stamp;
-  ros::Duration amcl_dt = now - tf_past.header.stamp;
-  ROS_INFO("getAmclMovement amcl_dt: %.3f", amcl_dt.toSec());
-
-  reliable_pose_msg.header = now_pose_msg.header;
-  reliable_pose_msg.pose.pose.position.x = tf_past.transform.translation.x;
-  reliable_pose_msg.pose.pose.position.y = tf_past.transform.translation.y;
-  reliable_pose_msg.pose.pose.orientation = tf_past.transform.rotation;
-
-  base_time = tf_past.header.stamp;
-  move.v[0] = now_pose.v[0] - tf_past.transform.translation.x;
-  move.v[1] = now_pose.v[1] - tf_past.transform.translation.y;
-  move.v[2] = angle_diff(now_pose.v[2], tf2::getYaw(tf_past.transform.rotation));
-  ROS_INFO("getAmclMovement move: %.3f, %.3f, %.3f", move.v[0], move.v[1], move.v[2]);
-
-  return move;
-}
-
-void
-AmclNode::broadcastAmclPose(const geometry_msgs::PoseWithCovarianceStamped& p)
-{
-  geometry_msgs::TransformStamped transform;
-  transform.header = p.header;
-  transform.child_frame_id = amcl_base_frame_id_;
-  transform.transform.translation.x = p.pose.pose.position.x;
-  transform.transform.translation.y = p.pose.pose.position.y;
-  transform.transform.translation.z = p.pose.pose.position.z;
-  transform.transform.rotation = p.pose.pose.orientation;
-  this->tfb_->sendTransform(transform);
-}
-
 
 pf_vector_t
 AmclNode::uniformPoseGenerator(void* arg)
@@ -1666,7 +1566,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
        */
 
       // odom correction
-      // TODO: init latest_amcl_pose_ and latest_base_link_pose_
+      // TODO: init previous_amcl_pose_ and previous_base_link_pose_
       if (!odom_correction_ /* || ros::Time::now() - init_time_ < ros::Duration(20)*/)
       {
         pose_pub_.publish(p);
@@ -1684,22 +1584,16 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         // initialize
         if (!is_init_odom_correction_)
         {
-          // current_base_link_pose.pose.pose.position.x = -7.11372;
-          // current_base_link_pose.pose.pose.position.y = 3.30607;
-          // current_base_link_pose.pose.pose.orientation = tf2::toMsg(tf2::Quaternion(0, 0, 0.5401539, 0.8415662));
-          latest_base_link_pose_ = current_base_link_pose;
-          latest_amcl_pose_ = p;
+          previous_base_link_pose_ = current_base_link_pose;
+          previous_amcl_pose_ = p;
           reliable_base_link_pose_ = current_base_link_pose;
           reliable_amcl_pose_ = p;
           is_init_odom_correction_ = true;
-          std::cerr << "Initialize odom correction" << std::endl;
-          std::cerr << "latest_base_link_pose_  : " << latest_base_link_pose_.pose.pose.position.x << " " << latest_base_link_pose_.pose.pose.position.y << " " << tf2::getYaw(latest_base_link_pose_.pose.pose.orientation) << std::endl;
-          std::cerr << "reliable_base_link_pose_: " << reliable_base_link_pose_.pose.pose.position.x << " " << reliable_base_link_pose_.pose.pose.position.y << " " << tf2::getYaw(reliable_base_link_pose_.pose.pose.orientation) << std::endl;
         }
 
-        pure_amcl_delta = getAmclMovement(p, latest_amcl_pose_);
-        std::cerr << "latest_base_link_pose 1 : " << latest_base_link_pose_.pose.pose.position.x << " " << latest_base_link_pose_.pose.pose.position.y << " " << tf2::getYaw(latest_base_link_pose_.pose.pose.orientation) << std::endl;
-        pure_odom_delta = getOdomMovement(current_base_link_pose, latest_base_link_pose_);
+        // get movement
+        pure_amcl_delta = getAmclMovement(p, previous_amcl_pose_);
+        pure_odom_delta = getOdomMovement(current_base_link_pose, previous_base_link_pose_);
 
         // update sum
         pure_amcl_delta_sum_.v[0] += pure_amcl_delta.v[0];
@@ -1723,36 +1617,35 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         if (acceptable_x && acceptable_z)
         {
           pose_pub_.publish(p);
-          last_published_pose = p;  // is needed?
+          last_published_pose = p;
           diff_count_ = 0;
           pure_amcl_delta_sum_ = pf_vector_zero();
           pure_odom_delta_sum_ = pf_vector_zero();
-          latest_amcl_pose_ = p;
-          latest_base_link_pose_ = current_base_link_pose;
+          previous_amcl_pose_ = p;
+          previous_base_link_pose_ = current_base_link_pose;
           reliable_amcl_pose_ = p;
           reliable_base_link_pose_ = current_base_link_pose;
         }
         else
         {
           ROS_INFO("acceptable_x: %d, acceptable_z: %d", acceptable_x, acceptable_z);
+          ROS_INFO("diff_count: %d", diff_count_);
           if (++diff_count_ < odom_amcl_diff_count_thre_)
           {
             pose_pub_.publish(p);
-            //broadcastAmclPose(p);
             last_published_pose = p;
-            latest_amcl_pose_ = p;
-            std::cerr << "current_base_link_pose 2 : " << current_base_link_pose.pose.pose.position.x << " " << current_base_link_pose.pose.pose.position.y << " " << tf2::getYaw(current_base_link_pose.pose.pose.orientation) << std::endl;
-            std::cerr << "latest_base_link_pose  2 : " << latest_base_link_pose_.pose.pose.position.x << " " << latest_base_link_pose_.pose.pose.position.y << " " << tf2::getYaw(latest_base_link_pose_.pose.pose.orientation) << std::endl;
-            latest_base_link_pose_ = current_base_link_pose;
-            std::cerr << "latest_base_link_pose  3 : " << latest_base_link_pose_.pose.pose.position.x << " " << latest_base_link_pose_.pose.pose.position.y << " " << tf2::getYaw(latest_base_link_pose_.pose.pose.orientation) << std::endl;
+            previous_amcl_pose_ = p;
+            previous_base_link_pose_ = current_base_link_pose;
           }
           else
           {
-            std::cerr << "\n\n\n Odom Correction !!!!!\n\n\n" << std::endl;
+            ROS_INFO("Odom Correction performed");
             reliable_pose_msg.header.stamp = p.header.stamp;
             reliable_pose_msg.pose.pose.position.x = reliable_amcl_pose_.pose.pose.position.x;
             reliable_pose_msg.pose.pose.position.y = reliable_amcl_pose_.pose.pose.position.y;
             reliable_pose_msg.pose.pose.orientation = reliable_amcl_pose_.pose.pose.orientation;
+
+            // get reliable odom movement
             pure_odom_delta_sum_ = getOdomMovement(current_base_link_pose, reliable_base_link_pose_);
 
             if (acceptable_x)
@@ -1787,8 +1680,8 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
 
             pose_pub_.publish(reliable_pose_msg);
             last_published_pose = reliable_pose_msg;
-            latest_amcl_pose_ = reliable_pose_msg;
-            latest_base_link_pose_ = current_base_link_pose;
+            previous_amcl_pose_ = reliable_pose_msg;
+            previous_base_link_pose_ = current_base_link_pose;
             reliable_amcl_pose_ = reliable_pose_msg;
             reliable_base_link_pose_ = current_base_link_pose;
 
@@ -1820,7 +1713,6 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
           pure_amcl_delta_sum_ = pf_vector_zero();
           pure_odom_delta_sum_ = pf_vector_zero();
         }
-        std::cerr << "\n" << std::endl;
       }
 
       ROS_DEBUG("New pose: %6.3f %6.3f %6.3f",
