@@ -249,24 +249,15 @@ class AmclNode
                      double& x, double& y, double& yaw,
                      const ros::Time& t, const std::string& f);
     
-
     // To calculate the displacement from Odom and compare it with the displacement from AMCL
-    pf_vector_t getOdomMovement(const pf_vector_t& current_pose, const ros::Time& now, const ros::Time& base_time);
     pf_vector_t getOdomMovement(const geometry_msgs::PoseWithCovarianceStamped& current_pose_msg,
                                 const geometry_msgs::PoseWithCovarianceStamped& past_pose_msg);
 
     // To calculate the displacement from Amcl and compare it with the displacement from Odom
-    pf_vector_t getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& now_pose_msg,
-                                  ros::Time& base_time,
-                                  geometry_msgs::PoseWithCovarianceStamped& reliable_pose_msg,
-                                  const ros::Time& past_time);
     pf_vector_t getAmclMovement(const geometry_msgs::PoseWithCovarianceStamped& current_pose_msg,
                                 const geometry_msgs::PoseWithCovarianceStamped& past_pose_msg);
 
     geometry_msgs::PoseWithCovarianceStamped getCurrentBaseLinkPose(ros::Time current_time);
-
-    // broadcast AmclPose and it's used in getAmclMovement in the future
-    void broadcastAmclPose(const geometry_msgs::PoseWithCovarianceStamped& p);
 
     //time for tolerance on the published transform,
     //basically defines how long a map->odom transform is good for
@@ -322,7 +313,6 @@ class AmclNode
     double odom_amcl_x_thre_;
     double odom_amcl_z_thre_;
     int odom_amcl_diff_count_thre_;
-    ros::Time init_time_ = ros::Time(1706078715.0);
 
     void reconfigureCB(amcl::AMCLConfig &config, uint32_t level);
 
