@@ -1577,7 +1577,6 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         pf_vector_t pure_odom_delta, pure_amcl_delta;
         geometry_msgs::PoseWithCovarianceStamped reliable_pose_msg;
 
-        std::cerr << "timestamp: " << laser_scan->header.stamp << std::endl;
         geometry_msgs::PoseWithCovarianceStamped current_base_link_pose =
           getCurrentBaseLinkPose(laser_scan->header.stamp);
 
