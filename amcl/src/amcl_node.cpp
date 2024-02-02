@@ -1566,8 +1566,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
        */
 
       // odom correction
-      // TODO: init previous_amcl_pose_ and previous_base_link_pose_
-      if (!odom_correction_ /* || ros::Time::now() - init_time_ < ros::Duration(20)*/)
+      if (!odom_correction_)
       {
         pose_pub_.publish(p);
         last_published_pose = p;
