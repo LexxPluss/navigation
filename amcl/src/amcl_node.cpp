@@ -1124,7 +1124,7 @@ AmclNode::getCurrentBaseLinkPose(ros::Time current_time)
   }
   catch (tf2::TransformException& ex1)
   {
-    ROS_INFO("amcl: Try to get the current base_link becase could not get current base_link: %s", ex1.what());
+    ROS_INFO("amcl: Try to get the current base_link because could not get current base_link: %s", ex1.what());
     try
     {
       current_tf = tf_->lookupTransform(global_frame_id_, base_frame_id_, ros::Time(0));
@@ -1144,6 +1144,9 @@ AmclNode::getCurrentBaseLinkPose(ros::Time current_time)
   return current_base_link_pose_msg;
 }
 
+// getOdomMovement() will change in the future.
+// map-odom is produced by ekf eating odom, imu, and amcl_pose so that map-baselink is not a pure movement of odometry.
+// We have to use odom-baselink which is produced by internal_kf only eating odom and imu
 pf_vector_t
 AmclNode::getOdomMovement(const geometry_msgs::PoseWithCovarianceStamped& current_pose_msg,
                           const geometry_msgs::PoseWithCovarianceStamped& past_pose_msg)
