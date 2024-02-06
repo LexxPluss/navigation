@@ -1118,13 +1118,14 @@ geometry_msgs::PoseWithCovarianceStamped
 AmclNode::getCurrentBaseLinkPose(ros::Time current_time)
 {
   geometry_msgs::TransformStamped current_tf;
+  geometry_msgs::PoseWithCovarianceStamped current_base_link_pose_msg;
   try
   {
     current_tf = tf_->lookupTransform(global_frame_id_, base_frame_id_, current_time);
   }
   catch (tf2::TransformException& ex1)
   {
-    ROS_INFO("amcl: Try to get the current base_link because could not get current base_link: %s", ex1.what());
+    ROS_INFO("amcl: Try to get the latest base_link because could not get current base_link: %s", ex1.what());
     try
     {
       current_tf = tf_->lookupTransform(global_frame_id_, base_frame_id_, ros::Time(0));
@@ -1135,8 +1136,6 @@ AmclNode::getCurrentBaseLinkPose(ros::Time current_time)
     }
     ROS_INFO("amcl: Delay: %.3f", (current_time - current_tf.header.stamp).toSec());
   }
-
-  geometry_msgs::PoseWithCovarianceStamped current_base_link_pose_msg;
   current_base_link_pose_msg.header.stamp = current_tf.header.stamp;
   current_base_link_pose_msg.pose.pose.position.x = current_tf.transform.translation.x;
   current_base_link_pose_msg.pose.pose.position.y = current_tf.transform.translation.y;
