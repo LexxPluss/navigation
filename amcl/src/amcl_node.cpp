@@ -314,10 +314,10 @@ class AmclNode
     double odom_amcl_x_thre_;
     double odom_amcl_z_thre_;
     double odom_sum_dist_;
-    double paused_odom_a_ = 0.0;
-    double paused_odom_d_ = 0.0;
-    double paused_odom_a_thre_ = 0.5;
-    double paused_odom_d_thre_ = M_PI / 4.0;
+    double paused_odom_z_ = 0.0;
+    double paused_odom_x_ = 0.0;
+    double paused_odom_z_thre_ = 0.5;
+    double paused_odom_x_thre_ = M_PI / 4.0;
     int odom_amcl_diff_count_thre_;
 
     void reconfigureCB(amcl::AMCLConfig &config, uint32_t level);
@@ -487,8 +487,8 @@ AmclNode::AmclNode() :
   private_nh_.param("odom_amcl_x_thre", odom_amcl_x_thre_, 0.2);
   private_nh_.param("odom_amcl_z_thre", odom_amcl_z_thre_, 0.01);
   private_nh_.param("odom_amcl_diff_count_thre", odom_amcl_diff_count_thre_, 5);
-  private_nh_.param("puased_odom_a_thre", paused_odom_a_thre_, M_PI/2.0);
-  private_nh_.param("puased_odom_d_thre", paused_odom_d_thre_, 1.0);
+  private_nh_.param("puased_odom_a_thre", paused_odom_z_thre_, M_PI/2.0);
+  private_nh_.param("puased_odom_d_thre", paused_odom_x_thre_, 1.0);
 
   // For diagnostics
   private_nh_.param("std_warn_level_x", std_warn_level_x_, 0.2);
@@ -561,8 +561,8 @@ AmclNode::AmclNode() :
   diff_count_ = 0;
   is_init_odom_correction_ = false;
   pause_odom_correction_ = true;
-  paused_odom_a_ = 0.0;
-  paused_odom_d_ = 0.0;
+  paused_odom_z_ = 0.0;
+  paused_odom_x_ = 0.0;
   diff_count_pub_ = nh_.advertise<std_msgs::Float32>("diff_count", 2, true);
   previous_amcl_pose_ = geometry_msgs::PoseWithCovarianceStamped();
   previous_base_link_pose_ = geometry_msgs::PoseWithCovarianceStamped();
@@ -1586,14 +1586,14 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       {
         diff_count_ = 0;
 
-        paused_odom_a_ += std::fabs(delta.v[2]);
-        paused_odom_d_ += std::sqrt(delta.v[0]*delta.v[0] + delta.v[1]*delta.v[1]);
-        if (paused_odom_a_ > paused_odom_a_thre_ ||
-            paused_odom_d_ > paused_odom_d_thre_)
+        paused_odom_z_ += std::fabs(delta.v[2]);
+        paused_odom_x_ += std::sqrt(delta.v[0]*delta.v[0] + delta.v[1]*delta.v[1]);
+        if (paused_odom_z_ > paused_odom_z_thre_ ||
+            paused_odom_x_ > paused_odom_x_thre_)
         {
           pause_odom_correction_ = false;
-          paused_odom_a_ = 0.0;
-          paused_odom_d_ = 0.0;
+          paused_odom_z_ = 0.0;
+          paused_odom_x_ = 0.0;
         }
         else{
           pose_pub_.publish(p);
