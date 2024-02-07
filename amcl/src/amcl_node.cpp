@@ -313,7 +313,6 @@ class AmclNode
     pf_vector_t pure_odom_delta_sum_;
     double odom_amcl_x_thre_;
     double odom_amcl_z_thre_;
-    double odom_sum_dist_;
     double paused_odom_z_;
     double paused_odom_x_;
     double paused_odom_z_thre_;
@@ -487,8 +486,8 @@ AmclNode::AmclNode() :
   private_nh_.param("odom_amcl_x_thre", odom_amcl_x_thre_, 0.2);
   private_nh_.param("odom_amcl_z_thre", odom_amcl_z_thre_, 0.01);
   private_nh_.param("odom_amcl_diff_count_thre", odom_amcl_diff_count_thre_, 5);
-  private_nh_.param("paused_odom_z_thre", paused_odom_z_thre_, M_PI/4.0);
-  private_nh_.param("paused_odom_x_thre", paused_odom_x_thre_, 0.5);
+  private_nh_.param("paused_odom_z_thre", paused_odom_z_thre_, M_PI/2.0);
+  private_nh_.param("paused_odom_x_thre", paused_odom_x_thre_, 1.0);
 
   // For diagnostics
   private_nh_.param("std_warn_level_x", std_warn_level_x_, 0.2);
@@ -1584,7 +1583,8 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         pose_pub_.publish(p);
         last_published_pose = p;
       }
-      else if (pause_odom_correction_)
+
+      if (odom_correction && pause_odom_correction_)
       {
         diff_count_ = 0;
 
@@ -1602,7 +1602,8 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
           last_published_pose = p;
         }
       }
-      else
+
+      if (odom_correction && !pause_odom_correction_)
       {
         pf_vector_t pure_odom_delta, pure_amcl_delta;
         geometry_msgs::PoseWithCovarianceStamped reliable_pose_msg;
@@ -1922,6 +1923,8 @@ AmclNode::applyInitialPose()
 
     delete initial_pose_hyp_;
     initial_pose_hyp_ = NULL;
+
+    pause_odom_correction_ = true;
   }
 }
 
