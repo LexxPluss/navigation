@@ -1112,6 +1112,7 @@ AmclNode::update_params_for_odom_correction(bool current_pose_is_reliable,
   std_msgs::Float32 diff_count_msg;
   diff_count_msg.data = float(diff_count_);
   diff_count_pub_.publish(diff_count_msg);
+  ROS_INFO("diff_count: %d", diff_count_);
   if (current_pose_is_reliable)
   {
     diff_count_ = 0;
@@ -1685,7 +1686,6 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         else
         {
           ROS_INFO("acceptable_x: %d, acceptable_z: %d", acceptable_x, acceptable_z);
-          ROS_INFO("diff_count: %d", diff_count_);
           if (++diff_count_ < odom_amcl_diff_count_thre_)
           {
             // Update params for odom correction when it is too early to perform odom correction but p is not reliable.
