@@ -1609,6 +1609,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
 
       if (odom_correction_ && pause_odom_correction_)
       {
+        ROS_INFO("odom correction paused");
         diff_count_ = 0;
 
         paused_odom_z_ += std::fabs(delta.v[2]);
@@ -1624,6 +1625,11 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
           pose_pub_.publish(p);
           last_published_pose = p;
         }
+
+        // Debug message
+        std_msgs::Float32 diff_count_msg;
+        diff_count_msg.data = float(diff_count_);
+        diff_count_pub_.publish(diff_count_msg);
       }
 
       if (odom_correction_ && !pause_odom_correction_)
@@ -1751,7 +1757,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         diff_count_msg.data = float(diff_count_);
         odom_amcl_diff_x_pub_.publish(dx_msg);
         odom_amcl_diff_z_pub_.publish(dz_msg);
-        diff_count_pub_.publish(diff_count_msg); 
+        diff_count_pub_.publish(diff_count_msg);
 
         // Initialze diff_count_ after excuting odom correction and diff_count is published
         if (diff_count_ >= odom_amcl_diff_count_thre_)
