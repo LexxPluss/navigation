@@ -1584,7 +1584,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         last_published_pose = p;
       }
 
-      if (odom_correction && pause_odom_correction_)
+      if (odom_correction_ && pause_odom_correction_)
       {
         diff_count_ = 0;
 
@@ -1603,7 +1603,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         }
       }
 
-      if (odom_correction && !pause_odom_correction_)
+      if (odom_correction_ && !pause_odom_correction_)
       {
         pf_vector_t pure_odom_delta, pure_amcl_delta;
         geometry_msgs::PoseWithCovarianceStamped reliable_pose_msg;
