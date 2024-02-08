@@ -1618,6 +1618,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         // initialize
         if (!is_init_odom_correction_)
         {
+          diff_count_ = 0;
           previous_base_link_pose_ = current_base_link_pose;
           previous_amcl_pose_ = p;
           reliable_base_link_pose_ = current_base_link_pose;
@@ -1626,7 +1627,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         }
 
         // get movement
-        pure_amcl_delta = getAmclMovement(p, previous_amcl_pose_);  // p is current_amcl_pose_ estimated by amcl
+        pure_amcl_delta = getAmclMovement(p, previous_amcl_pose_);  // p is current amcl pose estimated by amcl
         pure_odom_delta = getOdomMovement(current_base_link_pose, previous_base_link_pose_);
 
         // update sum
@@ -1650,6 +1651,9 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
 
         if ((acceptable_x && acceptable_z) || reset_odom_correction_)
         {
+          // update params for odom correction when 'p' (current amcl pose) is reliable
+          // Assume that the 'p' (current amcl pose) is reliable without odom correction,
+          // assign current_pose to previous_pose and reliable_pose, and use them in the next step.
           pose_pub_.publish(p);
           last_published_pose = p;
           diff_count_ = 0;
@@ -1667,6 +1671,10 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
           ROS_INFO("diff_count: %d", diff_count_);
           if (++diff_count_ < odom_amcl_diff_count_thre_)
           {
+            // update params for odom correction when it is too early to perform odom correction but p is not reliable.
+            // Since 'p' (current amcl pose) is unreliable, 'p' cannot be assigned to reliable_pose.
+            // Therefore, reliable_pose still holds the value when odom_correction was executed in the past,
+            // or the value when acceptable_x and acceptable_z were satisfied.
             pose_pub_.publish(p);
             last_published_pose = p;
             previous_amcl_pose_ = p;
@@ -1680,7 +1688,8 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
             reliable_pose_msg.pose.pose.position.y = reliable_amcl_pose_.pose.pose.position.y;
             reliable_pose_msg.pose.pose.orientation = reliable_amcl_pose_.pose.pose.orientation;
 
-            // get reliable odom movement
+            // Get reliable odom movement again to get the precise the amount of movement
+            // That's why reliable_base_link_pose_ is needed.
             pure_odom_delta_sum_ = getOdomMovement(current_base_link_pose, reliable_base_link_pose_);
 
             if (acceptable_x)
@@ -1713,13 +1722,6 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
               reliable_pose_msg.pose.pose.orientation.w = result_q.w();
             }
 
-            pose_pub_.publish(reliable_pose_msg);
-            last_published_pose = reliable_pose_msg;
-            previous_amcl_pose_ = reliable_pose_msg;
-            previous_base_link_pose_ = current_base_link_pose;
-            reliable_amcl_pose_ = reliable_pose_msg;
-            reliable_base_link_pose_ = current_base_link_pose;
-
             pf_vector_t pf_init_pose_mean = pf_vector_zero();
             pf_matrix_t pf_init_pose_cov = pf_matrix_zero();
             pf_init_pose_mean.v[0] = last_published_pose.pose.pose.position.x;
@@ -1729,6 +1731,20 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
             pf_init_pose_cov.m[1][1] = init_cov_[1];
             pf_init_pose_cov.m[2][2] = init_cov_[2];
             pf_init(pf_, pf_init_pose_mean, pf_init_pose_cov);
+
+            // update params for odom correction after odom correction is executed
+            // 'p' (current amcl pose) is rejected by the odm correction, and 'p' (current amcl pose)
+            // corrected by the odm correction is stored as reliable_pose_msg.
+            // This reliable_pose_msg is assigned to reliable_pose and previous_pose and used in the next step.
+            pose_pub_.publish(reliable_pose_msg);
+            last_published_pose = p;
+            diff_count_ = 0;
+            pure_amcl_delta_sum_ = pf_vector_zero();
+            pure_odom_delta_sum_ = pf_vector_zero();
+            previous_amcl_pose_ = reliable_pose_msg;
+            previous_base_link_pose_ = current_base_link_pose;
+            reliable_amcl_pose_ = reliable_pose_msg;
+            reliable_base_link_pose_ = current_base_link_pose;
           }
         }
 
@@ -1745,8 +1761,6 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         if (diff_count_ >= odom_amcl_diff_count_thre_)
         {
           diff_count_ = 0;
-          pure_amcl_delta_sum_ = pf_vector_zero();
-          pure_odom_delta_sum_ = pf_vector_zero();
         }
       }
 
