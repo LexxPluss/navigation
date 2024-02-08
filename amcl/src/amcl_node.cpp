@@ -309,6 +309,7 @@ class AmclNode
     bool odom_correction_;
     bool is_init_odom_correction_;
     bool pause_odom_correction_;
+    bool reset_odom_correction_;
     pf_vector_t pure_amcl_delta_sum_;
     pf_vector_t pure_odom_delta_sum_;
     double odom_amcl_x_thre_;
@@ -560,6 +561,7 @@ AmclNode::AmclNode() :
   diff_count_ = 0;
   is_init_odom_correction_ = false;
   pause_odom_correction_ = true;
+  reset_odom_correction_ = true;
   paused_odom_z_ = 0.0;
   paused_odom_x_ = 0.0;
   diff_count_pub_ = nh_.advertise<std_msgs::Float32>("diff_count", 2, true);
@@ -1142,7 +1144,9 @@ AmclNode::getCurrentBaseLinkPose(ros::Time current_time)
     }
     catch(const std::exception& ex2)
     {
-      ROS_WARN("amcl: Could not get the current odom tf: %s", ex2.what());
+      // reset odom correction since we couldn't get the latest odom tf
+      reset_odom_correction_ = true;
+      ROS_WARN("amcl: Could not get the latest odom tf: %s", ex2.what());
     }
     ROS_INFO("amcl: Delay: %.3f", (current_time - current_tf.header.stamp).toSec());
   }
@@ -1622,7 +1626,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         }
 
         // get movement
-        pure_amcl_delta = getAmclMovement(p, previous_amcl_pose_);
+        pure_amcl_delta = getAmclMovement(p, previous_amcl_pose_);  // p is current_amcl_pose_ estimated by amcl
         pure_odom_delta = getOdomMovement(current_base_link_pose, previous_base_link_pose_);
 
         // update sum
@@ -1644,7 +1648,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         geometry_msgs::PoseWithCovarianceStamped reliable_amcl_pose_msg;        
         reliable_amcl_pose_msg.header.stamp = p.header.stamp;
 
-        if (acceptable_x && acceptable_z)
+        if ((acceptable_x && acceptable_z) || reset_odom_correction_)
         {
           pose_pub_.publish(p);
           last_published_pose = p;
@@ -1655,6 +1659,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
           previous_base_link_pose_ = current_base_link_pose;
           reliable_amcl_pose_ = p;
           reliable_base_link_pose_ = current_base_link_pose;
+          reset_odom_correction_ = false;
         }
         else
         {
@@ -1727,7 +1732,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
           }
         }
 
-        // Debug
+        // Debug message
         std_msgs::Float32 dx_msg, dz_msg, diff_count_msg;
         dx_msg.data = dx;
         dz_msg.data = dz;
@@ -1736,7 +1741,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
         odom_amcl_diff_z_pub_.publish(dz_msg);
         diff_count_pub_.publish(diff_count_msg); 
 
-        // Initialze diff_count_ after excuting odom ocrrection
+        // Initialze diff_count_ after excuting odom correction and diff_count is published
         if (diff_count_ >= odom_amcl_diff_count_thre_)
         {
           diff_count_ = 0;
