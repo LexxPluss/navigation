@@ -195,9 +195,22 @@ namespace dwa_local_planner {
       bool is_force_update_;
       double latch_unlock_distance_;
       double cargo_timeout_sec_;
+      std::string cargo_mode_;
 
+      bool is_cargo_fixed_;
       bool is_cargo_enabled_;
       ros::Time cargo_angle_recv_time_;
+  };
+  enum actuator_status
+  {
+    ACT_LOW = 0,
+    ACT_LOW_TO_MID,
+    ACT_MID,
+    ACT_MID_TO_MID2,
+    ACT_MID2,
+    ACT_MID2_TO_HIGH,
+    ACT_HIGH,
+    ACT_STOP
   };
 };
 #endif
