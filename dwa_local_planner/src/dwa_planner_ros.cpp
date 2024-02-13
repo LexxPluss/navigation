@@ -541,6 +541,12 @@ namespace dwa_local_planner {
     {
       this->is_cargo_fixed_ = true;
     }
+    else
+    {
+      ROS_WARN_STREAM_ONCE("DWAPlannerROS: Unknown cargo_mode; using 'loading' :: " << this->cargo_mode_);
+      this->is_cargo_fixed_ = true;
+    }
+
   }
 
   void DWAPlannerROS::cargo_angle_callback(const std_msgs::Float64::ConstPtr& msg)
@@ -552,6 +558,10 @@ namespace dwa_local_planner {
     {
       this->is_cargo_enabled_ = true;
       this->cargo_angle_recv_time_ = ros::Time::now();
+    }
+    else
+    {
+      this->is_cargo_enabled_ = false;
     }
   }
 
