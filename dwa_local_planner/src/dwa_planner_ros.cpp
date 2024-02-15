@@ -157,12 +157,14 @@ namespace dwa_local_planner {
       private_nh.param("latch_unlock_distance", this->latch_unlock_distance_, 1.0);
       private_nh.param("cargo_timeout_sec", this->cargo_timeout_sec_, 1.0);
       private_nh.param("backward_rotate_time", this->backward_rotate_time_, 3.0);
+      private_nh.param("cargo_mode", this->cargo_mode_, std::string("loading")); // loading or towing or wani
 
       private_nh.param("cargo_limit_angle_deg", this->cargo_limit_angle_deg_, 90.0);
 
       this->is_actuator_connect_ = false;
       this->rotate_to_goal_ = false;
       this->is_cargo_enabled_ = false;
+      this->is_cargo_fixed_ = false;
     }
     else{
       ROS_WARN("This planner has already been initialized, doing nothing.");
@@ -543,6 +545,33 @@ namespace dwa_local_planner {
   void DWAPlannerROS::actuator_position_callback(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg)
   {
     this->is_actuator_connect_ = msg->connect;
+
+    // The decision should be delegated to the node responsible for Cargo Status at some point. => AMRCS-174
+    this->is_cargo_fixed_ = false;
+    if (this->cargo_mode_ == "wani")
+    {
+      if (actuator_status::ACT_MID2 <= msg->position[0])
+      {
+        this->is_cargo_fixed_ = true;
+      }
+    }
+    else if (this->cargo_mode_ == "towing")
+    {
+      if (!msg->connect)
+      {
+        this->is_cargo_fixed_ = true;
+      }
+    }
+    else if (this->cargo_mode_ == "loading")
+    {
+      this->is_cargo_fixed_ = true;
+    }
+    else
+    {
+      ROS_WARN_STREAM_ONCE("DWAPlannerROS: Unknown cargo_mode; using 'loading' :: " << this->cargo_mode_);
+      this->is_cargo_fixed_ = true;
+    }
+
   }
 
   void DWAPlannerROS::cargo_angle_callback(const std_msgs::Float64::ConstPtr& msg)
@@ -551,8 +580,15 @@ namespace dwa_local_planner {
     this->dp_->setCargoAngle(msg->data);
     this->goalLatchedStopRotateController_.setCargoAngle(msg->data);
     this->startLatchedStopRotateController_.setCargoAngle(msg->data);
-    this->is_cargo_enabled_ = true;
-    this->cargo_angle_recv_time_ = ros::Time::now();
+    if (!this->is_cargo_fixed_)
+    {
+      this->is_cargo_enabled_ = true;
+      this->cargo_angle_recv_time_ = ros::Time::now();
+    }
+    else
+    {
+      this->is_cargo_enabled_ = false;
+    }
   }
 
   void DWAPlannerROS::check_cargo_angle()
@@ -565,6 +601,7 @@ namespace dwa_local_planner {
         this->is_cargo_enabled_ = false;
       }
     }
+    ROS_INFO_STREAM("DWAPlannerROS :: is_cargo_enabled :: " << this->is_cargo_enabled_);
 
     this->dp_->setCargoEnabled(this->is_cargo_enabled_);
     this->goalLatchedStopRotateController_.setCargoEnabled(this->is_cargo_enabled_);
