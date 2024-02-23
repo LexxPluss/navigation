@@ -111,8 +111,10 @@ public:
     unsigned char cost = 0;
     if (distance == 0)
       cost = LETHAL_OBSTACLE;
-    else if (distance * resolution_ <= inscribed_radius_)
+    else if (distance * resolution_ <= inscribed_radius_ + impassable_margin_)
       cost = INSCRIBED_INFLATED_OBSTACLE;
+    else if (distance * resolution_ <= inscribed_radius_ + impassable_margin_ + path_avoidance_margin_)
+      cost = INSCRIBED_INFLATED_OBSTACLE - 1;
     else
     {
       // make sure cost falls off by Euclidean distance
@@ -131,13 +133,17 @@ public:
    * @param max_inflation_radius The maximum inflation radius
    * @param min_inflation_vel The minimum velocity to activate variable inflation
    * @param max_inflation_vel The maximum velocity to activate variable inflation
+   * @param impassable_margin The margin to apply to no entry cost values.
+   * @param path_avoidance_margin The margin to apply to path distance when avoiding obstacles.
    */
   void setInflationParameters(double inflation_radius,
                               double cost_scaling_factor,
                               double min_inflation_radius,
                               double max_inflation_radius,
                               double min_inflation_vel,
-                              double max_inflation_vel);
+                              double max_inflation_vel,
+                              double impassable_margin,
+                              double path_avoidance_margin);
 
 protected:
   virtual void onFootprintChanged();
@@ -153,6 +159,8 @@ protected:
   double max_inflation_radius_ = 0.5;
   double min_inflation_vel_ = 0.2;
   double max_inflation_vel_ = 0.6;
+  double path_avoidance_margin_;
+  double impassable_margin_;
 
 private:
   /**

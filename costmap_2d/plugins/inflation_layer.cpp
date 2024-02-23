@@ -57,6 +57,8 @@ InflationLayer::InflationLayer()
   , inflate_unknown_(false)
   , cell_inflation_radius_(0)
   , cached_cell_inflation_radius_(0)
+  , path_avoidance_margin_(0)
+  , impassable_margin_(0)
   , dsrv_(NULL)
   , seen_(NULL)
   , cached_costs_(NULL)
@@ -100,7 +102,7 @@ void InflationLayer::onInitialize()
 
 void InflationLayer::reconfigureCB(costmap_2d::InflationPluginConfig &config, uint32_t level)
 {
-  setInflationParameters(config.inflation_radius, config.cost_scaling_factor);
+  setInflationParameters(config.inflation_radius, config.cost_scaling_factor, config.path_avoidance_margin, config.impassable_margin);
 
   if (enabled_ != config.enabled || inflate_unknown_ != config.inflate_unknown) {
     enabled_ = config.enabled;
@@ -364,9 +366,11 @@ void InflationLayer::deleteKernels()
   }
 }
 
-void InflationLayer::setInflationParameters(double inflation_radius, double cost_scaling_factor)
+void InflationLayer::setInflationParameters(double inflation_radius, double cost_scaling_factor,
+                                            double path_avoidance_margin, double impassable_margin)
 {
-  if (weight_ != cost_scaling_factor || inflation_radius_ != inflation_radius)
+  if (weight_ != cost_scaling_factor || inflation_radius_ != inflation_radius ||
+      path_avoidance_margin_ != path_avoidance_margin || impassable_margin_ != impassable_margin)
   {
     // Lock here so that reconfiguring the inflation radius doesn't cause segfaults
     // when accessing the cached arrays
@@ -375,6 +379,8 @@ void InflationLayer::setInflationParameters(double inflation_radius, double cost
     inflation_radius_ = inflation_radius;
     cell_inflation_radius_ = cellDistance(inflation_radius_);
     weight_ = cost_scaling_factor;
+    path_avoidance_margin_ = path_avoidance_margin;
+    impassable_margin_ = impassable_margin;
     need_reinflation_ = true;
     computeCaches();
   }
