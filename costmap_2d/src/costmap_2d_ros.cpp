@@ -194,6 +194,7 @@ void Costmap2DROS::setUnpaddedRobotFootprintPolygon(const geometry_msgs::Polygon
 
   // check if the footprint is the same as the one we already have
   bool is_changed = false;
+  constexpr double EPSILON = 1e-6;
   if (points.size() != unpadded_footprint_.size())
   {
     is_changed = true;
@@ -202,7 +203,8 @@ void Costmap2DROS::setUnpaddedRobotFootprintPolygon(const geometry_msgs::Polygon
   {
     for (unsigned int i = 0; i < points.size(); i++)
     {
-      if (points[i].x != unpadded_footprint_[i].x || points[i].y != unpadded_footprint_[i].y)
+      if (EPSILON < std::abs(points[i].x - unpadded_footprint_[i].x)
+        || EPSILON < std::abs(points[i].y - unpadded_footprint_[i].y))
       {
         is_changed = true;
         break;
