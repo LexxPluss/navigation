@@ -231,11 +231,8 @@ public:
    * getUnpaddedRobotFootprint(). */
   void setUnpaddedRobotFootprintPolygon(const geometry_msgs::Polygon& footprint);
 
-  void actuator_position_callback(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg);
   void footprint_callback(const geometry_msgs::Polygon::ConstPtr& msg);
 
-  //std::vector<geometry_msgs::Point>
-  void dynamicFootprintFromParams();
 
   void load_footprints(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>& extended_footprint, std::vector<geometry_msgs::Point>& original_footprint);
 protected:
@@ -277,16 +274,10 @@ private:
   ros::Subscriber footprint_sub_;
   ros::Subscriber truck_footprint_sub_;
   ros::Publisher footprint_pub_;
-  ros::Subscriber actuator_position_sub_;////
   std::vector<geometry_msgs::Point> unpadded_footprint_;
   std::vector<geometry_msgs::Point> padded_footprint_;
   float footprint_padding_;
   costmap_2d::Costmap2DConfig old_config_;
-  std::mutex footprint_mutex_;
-
-  lexxauto_msgs::ActuatorStatus actuator_position;
-  std::vector<geometry_msgs::Point> extended_footprint;
-  std::vector<geometry_msgs::Point> original_footprint;
 };
 
 // class Costmap2DROS
