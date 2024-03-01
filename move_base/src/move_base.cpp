@@ -167,10 +167,16 @@ namespace move_base {
       controller_costmap_ros_->stop();
     }
 
+    /* TODO(AMRCS-32) The current plugin-based recovery_behaviors setting does not support recovery_behaviors_carrying,
+       so if used, recovery will not be properly performed when towing.
+       Therefore, until the plugin method supports recovery_behaviors_carrying, the function is excluded.
+
     //load any user specified recovery behaviors, and if that fails load the defaults
     if(!loadRecoveryBehaviors(private_nh)){
       loadDefaultRecoveryBehaviors();
     }
+    */
+    loadDefaultRecoveryBehaviors();
 
     //initially, we'll need to make a plan
     state_ = PLANNING;
@@ -1193,68 +1199,79 @@ namespace move_base {
     try{
       //we need to set some parameters based on what's been passed in to us to maintain backwards compatibility
       ros::NodeHandle n("~");
-      n.setParam("conservative_reset/reset_distance", 0.0); //conservative_reset_dist_);
-      n.setParam("aggressive_reset/reset_distance", 0.0); //circumscribed_radius_ * 4);
+      n.setParam("conservative_reset/reset_distance", conservative_reset_dist_);
+      n.setParam("aggressive_reset/reset_distance", circumscribed_radius_ * 4);
 
-      boost::shared_ptr<nav_core::RecoveryBehavior> cons_clear(recovery_loader_.createInstance("clear_costmap_recovery/ClearCostmapRecovery"));
-      cons_clear->initialize("conservative_reset", &tf_, planner_costmap_ros_, controller_costmap_ros_);
-
-      boost::shared_ptr<nav_core::RecoveryBehavior> ags_clear(recovery_loader_.createInstance("clear_costmap_recovery/ClearCostmapRecovery"));
-      ags_clear->initialize("aggressive_reset", &tf_, planner_costmap_ros_, controller_costmap_ros_);
-
-      boost::shared_ptr<nav_core::RecoveryBehavior> safety_direction(recovery_loader_.createInstance("safety_direction_recovery/SafetyDirectionRecovery"));
-      safety_direction->initialize("safety_direction_recovery", &tf_, planner_costmap_ros_, controller_costmap_ros_);
-
-      boost::shared_ptr<nav_core::RecoveryBehavior> rotate(recovery_loader_.createInstance("rotate_recovery/RotateRecovery"));
-      rotate->initialize("rotate_recovery", &tf_, planner_costmap_ros_, controller_costmap_ros_);
-
-      boost::shared_ptr<nav_core::RecoveryBehavior> go_back(recovery_loader_.createInstance("go_back_recovery/GoBackRecovery"));
-      go_back->initialize("go_back_recovery", &tf_, planner_costmap_ros_, controller_costmap_ros_);
-
-      boost::shared_ptr<nav_core::RecoveryBehavior> rotate_small(recovery_loader_.createInstance("rotate_small_recovery/RotateSmallRecovery"));
-      rotate_small->initialize("rotate_small_recovery", &tf_, planner_costmap_ros_, controller_costmap_ros_);
-
-      int outer_loop_recovery_count = 3;
-      int inner_loop_recovery_count = 2;
-      for (int i=0; i<outer_loop_recovery_count; i++)
+      typedef boost::shared_ptr<nav_core::RecoveryBehavior> BehPtr;
+      typedef struct
       {
-        if (aggressive_clearing_map_allowed_)
+        std::string name;
+        std::string type;
+      } BehDef;
+
+      const BehDef cons_clear = {"conservative_reset", "clear_costmap_recovery/ClearCostmapRecovery"};
+      const BehDef ags_clear = {"aggressive_reset", "clear_costmap_recovery/ClearCostmapRecovery"};
+      const BehDef safety_direction = {"safety_direction_recovery", "safety_direction_recovery/SafetyDirectionRecovery"};
+      const BehDef rotate = {"rotate_recovery", "rotate_recovery/RotateRecovery"};
+      const BehDef go_back = {"go_back_recovery", "go_back_recovery/GoBackRecovery"};
+      const BehDef rotate_small = {"rotate_small_recovery", "rotate_small_recovery/RotateSmallRecovery"};
+
+      std::map<std::string, BehPtr> instance_cache; 
+      auto makeBeh = [&](const BehDef def) -> BehPtr {
+        if (instance_cache.find(def.type) != instance_cache.end())
         {
-          recovery_behaviors_.push_back(cons_clear);
-          recovery_behaviors_carrying_.push_back(cons_clear);
+          return instance_cache.at(def.type);
         }
+        else
+        {
+          BehPtr behavior(recovery_loader_.createInstance(def.type));
+          behavior->initialize(def.name, &tf_, planner_costmap_ros_, controller_costmap_ros_);
+          instance_cache[def.type] = behavior;
+          return behavior;
+        }
+      };
+
+      constexpr int outer_loop_recovery_count = 3;
+      constexpr int inner_loop_recovery_count = 2;
+      for (int i = 0; i < outer_loop_recovery_count; i++)
+      {
         if (conservative_clearing_map_allowed_)
         {
-          recovery_behaviors_.push_back(ags_clear);
-          recovery_behaviors_carrying_.push_back(ags_clear);
+          recovery_behaviors_.push_back(makeBeh(cons_clear));
+          recovery_behaviors_carrying_.push_back(makeBeh(cons_clear));
+        }
+        if (aggressive_clearing_map_allowed_)
+        {
+          recovery_behaviors_.push_back(makeBeh(ags_clear));
+          recovery_behaviors_carrying_.push_back(makeBeh(ags_clear));
         }
 
         for (int j=0; j<inner_loop_recovery_count; j++)
         {
-          recovery_behaviors_.push_back(safety_direction);
+          recovery_behaviors_.push_back(makeBeh(safety_direction));
           if (use_safety_direction_recovery_in_towing_)
           {
-            recovery_behaviors_carrying_.push_back(safety_direction);
+            recovery_behaviors_carrying_.push_back(makeBeh(safety_direction));
           }
           else
           {
             if (backward_recovery_allowed_)
             {
-              recovery_behaviors_carrying_.push_back(go_back);
+              recovery_behaviors_carrying_.push_back(makeBeh(go_back));
             }
 
             if (clearing_rotation_allowed_ && rotate_small_angle_ != 0.0)
             {
-              recovery_behaviors_carrying_.push_back(rotate_small);
+              recovery_behaviors_carrying_.push_back(makeBeh(rotate_small));
             }
           }
         }
         if (clearing_rotation_allowed_)
         {
-          recovery_behaviors_.push_back(rotate);
+          recovery_behaviors_.push_back(makeBeh(rotate));
           if (use_rotate_recovery_in_towing_)
           {
-            recovery_behaviors_carrying_.push_back(rotate);
+            recovery_behaviors_carrying_.push_back(makeBeh(rotate));
           }
         }
       }
