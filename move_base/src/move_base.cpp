@@ -102,6 +102,8 @@ namespace move_base {
     amr_status_pub_ = nh.advertise<std_msgs::String>("amr_status", 1);
     carrying_status_sub_ = nh.subscribe<lexxauto_msgs::ActuatorStatus>("actuator_position", 1, boost::bind(&MoveBase::carryingStatusCB, this, _1));
 
+    this->virtual_obstacle_enabled_pub_ = nh.advertise<std_msgs::Bool>("virtual_obstacle_map/enable", 1, true);
+
     //we'll provide a mechanism for some people to send goals as PoseStamped messages over a topic
     //they won't get any useful information back about its status, but this is useful for tools
     //like nav_view and rviz
@@ -182,8 +184,7 @@ namespace move_base {
     state_ = PLANNING;
 
     //we'll start executing recovery behaviors at the beginning of our list
-    recovery_index_ = 0;
-    recovery_flag_ = false;
+    resetRecovery();
 
     //we're all set up now so we can start the action server
     as_->start();
@@ -586,6 +587,16 @@ namespace move_base {
     planner_cond_.notify_one();
   }
 
+  void MoveBase::resetRecovery()
+  {
+    recovery_index_ = 0;
+    recovery_flag_ = false;
+
+    // std_msgs::Bool enable_msg;
+    // enable_msg.data = true;
+    // this->virtual_obstacle_enabled_pub_.publish(enable_msg);
+  }
+
   void MoveBase::planThread(){
     ROS_DEBUG_NAMED("move_base_plan_thread","Starting planner thread...");
     ros::NodeHandle n;
@@ -715,6 +726,10 @@ namespace move_base {
 
       if(as_->isPreemptRequested()){
         if(as_->isNewGoalAvailable()){
+          std_msgs::Bool enable_msg;
+          enable_msg.data = true;
+          this->virtual_obstacle_enabled_pub_.publish(enable_msg);
+
           //if we're active and a new goal is available, we'll accept it, but we won't shut anything down
           move_base_msgs::MoveBaseGoal new_goal = *as_->acceptNewGoal();
 
@@ -728,8 +743,7 @@ namespace move_base {
           goal = goalToGlobalFrame(new_goal.target_pose);
 
           //we'll make sure that we reset our state for the next execution cycle
-          recovery_index_ = 0;
-          recovery_flag_ = false;
+          resetRecovery();
           state_ = PLANNING;
 
           //we have a new goal so make sure the planner is awake
@@ -770,8 +784,7 @@ namespace move_base {
         goal = goalToGlobalFrame(goal);
 
         //we want to go back to the planning state for the next execution cycle
-        recovery_index_ = 0;
-        recovery_flag_ = false;
+        resetRecovery();
         state_ = PLANNING;
 
         //we have a new goal so make sure the planner is awake
@@ -855,8 +868,7 @@ namespace move_base {
       //if our last recovery was caused by oscillation, we want to reset the recovery index 
       if(recovery_trigger_ == OSCILLATION_R)
       {
-        recovery_index_ = 0;
-        recovery_flag_ = false;
+        resetRecovery();
       }
     }
 
@@ -903,8 +915,7 @@ namespace move_base {
       //make sure to reset recovery_index_ since we were able to find a valid plan
       if(recovery_trigger_ == PLANNING_R)
       {
-        recovery_index_ = 0;
-        recovery_flag_ = false;
+        resetRecovery();
       }
     }
 
@@ -976,8 +987,7 @@ namespace move_base {
             cmd_vel_ = cmd_vel;
             if(recovery_trigger_ == CONTROLLING_R)
             {
-              recovery_index_ = 0;
-              recovery_flag_ = false;
+              resetRecovery();
             }
           }
           else {
@@ -1215,6 +1225,8 @@ namespace move_base {
       const BehDef rotate = {"rotate_recovery", "rotate_recovery/RotateRecovery"};
       const BehDef go_back = {"go_back_recovery", "go_back_recovery/GoBackRecovery"};
       const BehDef rotate_small = {"rotate_small_recovery", "rotate_small_recovery/RotateSmallRecovery"};
+      const BehDef remove_virtual_obstacle = {"remove_virtual_obstacle_recovery",
+                                              "remove_virtual_obstacle_recovery/RemoveVirtualObstacleRecovery"};
 
       std::map<std::string, BehPtr> instance_cache; 
       auto makeBeh = [&](const BehDef def) -> BehPtr {
@@ -1274,6 +1286,9 @@ namespace move_base {
             recovery_behaviors_carrying_.push_back(makeBeh(rotate));
           }
         }
+
+        recovery_behaviors_.push_back(makeBeh(remove_virtual_obstacle));
+        recovery_behaviors_carrying_.push_back(makeBeh(remove_virtual_obstacle));
       }
 
     }
@@ -1292,8 +1307,7 @@ namespace move_base {
 
     // Reset statemachine
     state_ = PLANNING;
-    recovery_index_ = 0;
-    recovery_flag_ = false;
+    resetRecovery();
     recovery_trigger_ = PLANNING_R;
     publishZeroVelocity();
 

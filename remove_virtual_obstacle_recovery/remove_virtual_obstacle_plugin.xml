@@ -1,0 +1,7 @@
+<library path="lib/libremove_virtual_obstacle_recovery">
+    <class name="remove_virtual_obstacle_recovery/RemoveVirtualObstacleRecovery" type="remove_virtual_obstacle_recovery::RemoveVirtualObstacleRecovery" base_class_type="nav_core::RecoveryBehavior">
+        <description>
+            A recovery behavior that moves the robot backwards to where it came from by following the same path.
+        </description>
+    </class>
+</library>
