@@ -97,6 +97,7 @@ namespace move_base {
     current_goal_pub_ = private_nh.advertise<geometry_msgs::PoseStamped>("current_goal", 0 );
     ros::NodeHandle action_nh("move_base");
     action_goal_pub_ = action_nh.advertise<move_base_msgs::MoveBaseActionGoal>("goal", 1);
+    action_goal_sub_ = action_nh.subscribe<move_base_msgs::MoveBaseActionGoal>("goal", 1, boost::bind(&MoveBase::actionGoalCB, this, _1));
 
     //for robot status
     amr_status_pub_ = nh.advertise<std_msgs::String>("amr_status", 1);
@@ -291,6 +292,13 @@ namespace move_base {
     action_goal.goal.target_pose = *goal;
 
     action_goal_pub_.publish(action_goal);
+  }
+
+  void MoveBase::actionGoalCB(const move_base_msgs::MoveBaseActionGoal::ConstPtr& goal)
+  {
+    std_msgs::Bool enable_msg;
+    enable_msg.data = true;
+    this->virtual_obstacle_enabled_pub_.publish(enable_msg);
   }
 
   void MoveBase::carryingStatusCB(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg)
@@ -591,10 +599,6 @@ namespace move_base {
   {
     recovery_index_ = 0;
     recovery_flag_ = false;
-
-    // std_msgs::Bool enable_msg;
-    // enable_msg.data = true;
-    // this->virtual_obstacle_enabled_pub_.publish(enable_msg);
   }
 
   void MoveBase::planThread(){
@@ -723,13 +727,9 @@ namespace move_base {
         r = ros::Rate(controller_frequency_);
         c_freq_change_ = false;
       }
-
+      
       if(as_->isPreemptRequested()){
         if(as_->isNewGoalAvailable()){
-          std_msgs::Bool enable_msg;
-          enable_msg.data = true;
-          this->virtual_obstacle_enabled_pub_.publish(enable_msg);
-
           //if we're active and a new goal is available, we'll accept it, but we won't shut anything down
           move_base_msgs::MoveBaseGoal new_goal = *as_->acceptNewGoal();
 

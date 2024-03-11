@@ -175,6 +175,8 @@ namespace move_base {
 
       void goalCB(const geometry_msgs::PoseStamped::ConstPtr& goal);
 
+      void actionGoalCB(const move_base_msgs::MoveBaseActionGoal::ConstPtr& goal);
+
       void carryingStatusCB(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg);
 
       void planThread();
@@ -219,7 +221,7 @@ namespace move_base {
       uint32_t planning_retries_;
       double conservative_reset_dist_, clearing_radius_, max_sim_time_, min_occdist_scale_;
       ros::Publisher current_goal_pub_, vel_pub_, action_goal_pub_, amr_status_pub_, virtual_obstacle_enabled_pub_;
-      ros::Subscriber goal_sub_, carrying_status_sub_;
+      ros::Subscriber goal_sub_, carrying_status_sub_, action_goal_sub_;
       ros::ServiceServer make_plan_srv_, clear_costmaps_srv_;
       bool shutdown_costmaps_, clearing_rotation_allowed_, recovery_behavior_enabled_, backward_recovery_allowed_, abort_after_recovery_allowed_;
       bool conservative_clearing_map_allowed_, aggressive_clearing_map_allowed_;
