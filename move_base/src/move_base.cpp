@@ -124,6 +124,7 @@ namespace move_base {
     private_nh.param("abort_after_recovery_allowed", abort_after_recovery_allowed_, false);
     private_nh.param("conservative_clearing_map_allowed", conservative_clearing_map_allowed_, false);
     private_nh.param("aggressive_clearing_map_allowed", aggressive_clearing_map_allowed_, false);
+    private_nh.param("remove_virtual_obstacle_recovery_allowed", remove_virtual_obstacle_recovery_allowed_, false);
     private_nh.param("rotate_small_angle", rotate_small_angle_, 0.0);
 
     //create the ros wrapper for the planner's costmap... and initializer a pointer we'll use with the underlying map
@@ -1287,8 +1288,11 @@ namespace move_base {
           }
         }
 
-        recovery_behaviors_.push_back(makeBeh(remove_virtual_obstacle));
-        recovery_behaviors_carrying_.push_back(makeBeh(remove_virtual_obstacle));
+        if (remove_virtual_obstacle_recovery_allowed_)
+        {
+          recovery_behaviors_.push_back(makeBeh(remove_virtual_obstacle));
+          recovery_behaviors_carrying_.push_back(makeBeh(remove_virtual_obstacle));
+        }
       }
 
     }
