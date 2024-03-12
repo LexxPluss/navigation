@@ -443,7 +443,7 @@ namespace dwa_local_planner {
 
       double current_x = current_pose_.pose.position.x;
       double current_y = current_pose_.pose.position.y;
-      
+
       // calc closest waypoint
       auto closest_waypoint_iter = transformed_plan.begin();
       double min_distance = std::numeric_limits<double>::max();
