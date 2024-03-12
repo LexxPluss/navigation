@@ -728,7 +728,7 @@ namespace move_base {
         r = ros::Rate(controller_frequency_);
         c_freq_change_ = false;
       }
-      
+
       if(as_->isPreemptRequested()){
         if(as_->isNewGoalAvailable()){
           //if we're active and a new goal is available, we'll accept it, but we won't shut anything down
