@@ -202,6 +202,7 @@ namespace dwa_local_planner {
       bool is_cargo_fixed_;
       bool is_cargo_enabled_;
       ros::Time cargo_angle_recv_time_;
+      bool use_euclidean_distance_logic_;
   };
   enum actuator_status
   {

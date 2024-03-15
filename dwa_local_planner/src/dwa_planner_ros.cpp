@@ -160,6 +160,7 @@ namespace dwa_local_planner {
       private_nh.param("cargo_mode", this->cargo_mode_, std::string("loading")); // loading or towing or wani
 
       private_nh.param("cargo_limit_angle_deg", this->cargo_limit_angle_deg_, 90.0);
+      private_nh.param("use_euclidean_distance_logic", this->use_euclidean_distance_logic_, false);
 
       this->is_actuator_connect_ = false;
       this->rotate_to_goal_ = false;
@@ -461,27 +462,48 @@ namespace dwa_local_planner {
       }
 
       // transformed_plan is not empty
-      double traveled_distance = 0.0;
       turn_target_pose = transformed_plan.back();
-      for (auto iter = closest_waypoint_iter; iter != transformed_plan.end() ; ++iter)
+
+      if (this->use_euclidean_distance_logic_)
       {
-        // Skip calculation for the first point (closest waypoint itself)
-        if (iter != closest_waypoint_iter)
-        {
-          double prev_x = std::prev(iter)->pose.position.x;
-          double prev_y = std::prev(iter)->pose.position.y;
-          double tmp_x = iter->pose.position.x;
-          double tmp_y = iter->pose.position.y;
-          traveled_distance += std::sqrt(std::pow(prev_x - tmp_x, 2) + std::pow(prev_y - tmp_y, 2));
-        }
-        
-        if (this->rotate_target_distance_ < traveled_distance)
+        // This logic is the old way of calculating the distance to rotate_target_distance in Euclidean distance.
+        // If there is any meandering within the rotate_target_distance, the look ahead point cannot be determined accurately.
+        // The old logic is optionally available for compatibility with past logic.
+
+        for (auto iter = closest_waypoint_iter; iter != transformed_plan.end(); iter++)
         {
           turn_target_pose = *iter;
-          break;
+          double tmp_x = iter->pose.position.x;
+          double tmp_y = iter->pose.position.y;
+          double distance = std::sqrt(std::pow(current_x - tmp_x, 2) + std::pow(current_y - tmp_y, 2));
+          if (this->rotate_target_distance_ < distance)
+          {
+            break;
+          }
         }
       }
-      
+      else
+      {
+        double traveled_distance = 0.0;
+        for (auto iter = closest_waypoint_iter; iter != transformed_plan.end() ; ++iter)
+        {
+          // Skip calculation for the first point (closest waypoint itself)
+          if (iter != closest_waypoint_iter)
+          {
+            double prev_x = std::prev(iter)->pose.position.x;
+            double prev_y = std::prev(iter)->pose.position.y;
+            double tmp_x = iter->pose.position.x;
+            double tmp_y = iter->pose.position.y;
+            traveled_distance += std::sqrt(std::pow(prev_x - tmp_x, 2) + std::pow(prev_y - tmp_y, 2));
+          }
+          
+          if (this->rotate_target_distance_ < traveled_distance)
+          {
+            turn_target_pose = *iter;
+            break;
+          }
+        }
+      }
       double turn_target_x = turn_target_pose.pose.position.x;
       double turn_target_y = turn_target_pose.pose.position.y;
 
