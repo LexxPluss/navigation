@@ -160,6 +160,7 @@ namespace dwa_local_planner {
       private_nh.param("cargo_mode", this->cargo_mode_, std::string("loading")); // loading or towing or wani
 
       private_nh.param("cargo_limit_angle_deg", this->cargo_limit_angle_deg_, 90.0);
+      private_nh.param("use_euclidean_distance_logic", this->use_euclidean_distance_logic_, false);
 
       this->is_actuator_connect_ = false;
       this->rotate_to_goal_ = false;
@@ -461,18 +462,48 @@ namespace dwa_local_planner {
       }
 
       // transformed_plan is not empty
-      for (auto iter = closest_waypoint_iter; iter != transformed_plan.end(); iter++)
+      turn_target_pose = transformed_plan.back();
+
+      if (this->use_euclidean_distance_logic_)
       {
-        turn_target_pose = *iter;
-        double tmp_x = iter->pose.position.x;
-        double tmp_y = iter->pose.position.y;
-        double distance = std::sqrt(std::pow(current_x - tmp_x, 2) + std::pow(current_y - tmp_y, 2));
-        if (this->rotate_target_distance_ < distance)
+        // This logic is the old way of calculating the distance to rotate_target_distance in Euclidean distance.
+        // If there is any meandering within the rotate_target_distance, the look ahead point cannot be determined accurately.
+        // The old logic is optionally available for compatibility with past logic.
+
+        for (auto iter = closest_waypoint_iter; iter != transformed_plan.end(); iter++)
         {
-          break;
+          turn_target_pose = *iter;
+          double tmp_x = iter->pose.position.x;
+          double tmp_y = iter->pose.position.y;
+          double distance = std::sqrt(std::pow(current_x - tmp_x, 2) + std::pow(current_y - tmp_y, 2));
+          if (this->rotate_target_distance_ < distance)
+          {
+            break;
+          }
         }
       }
-      
+      else
+      {
+        double traveled_distance = 0.0;
+        for (auto iter = closest_waypoint_iter; iter != transformed_plan.end() ; ++iter)
+        {
+          // Skip calculation for the first point (closest waypoint itself)
+          if (iter != closest_waypoint_iter)
+          {
+            double prev_x = std::prev(iter)->pose.position.x;
+            double prev_y = std::prev(iter)->pose.position.y;
+            double tmp_x = iter->pose.position.x;
+            double tmp_y = iter->pose.position.y;
+            traveled_distance += std::sqrt(std::pow(prev_x - tmp_x, 2) + std::pow(prev_y - tmp_y, 2));
+          }
+          
+          if (this->rotate_target_distance_ < traveled_distance)
+          {
+            turn_target_pose = *iter;
+            break;
+          }
+        }
+      }
       double turn_target_x = turn_target_pose.pose.position.x;
       double turn_target_y = turn_target_pose.pose.position.y;
 
@@ -512,6 +543,10 @@ namespace dwa_local_planner {
         dp_->getSimPeriod(),
         limits,
         boost::bind(&DWAPlanner::checkTrajectory, dp_, _1, _2, _3));
+
+      publishGlobalPlan(transformed_plan);
+      std::vector<geometry_msgs::PoseStamped> empty_local_plan;
+      publishLocalPlan(empty_local_plan);
 
       if (!was_rotate || std::abs(current_th - turn_target_th) < (5.0 * M_PI / 180.0))
       {
@@ -601,7 +636,7 @@ namespace dwa_local_planner {
         this->is_cargo_enabled_ = false;
       }
     }
-    ROS_INFO_STREAM("DWAPlannerROS :: is_cargo_enabled :: " << this->is_cargo_enabled_);
+    ROS_DEBUG_STREAM("DWAPlannerROS :: is_cargo_enabled :: " << this->is_cargo_enabled_);
 
     this->dp_->setCargoEnabled(this->is_cargo_enabled_);
     this->goalLatchedStopRotateController_.setCargoEnabled(this->is_cargo_enabled_);
