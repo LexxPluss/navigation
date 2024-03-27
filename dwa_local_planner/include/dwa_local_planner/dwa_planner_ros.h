@@ -203,6 +203,10 @@ namespace dwa_local_planner {
       bool is_cargo_enabled_;
       ros::Time cargo_angle_recv_time_;
       bool use_euclidean_distance_logic_;
+
+      double original_xy_goal_tolerance_;
+      double tug_mode_xy_goal_tolerance_scale_;
+      double current_tug_mode_xy_goal_tolerance_scale_;
   };
   enum actuator_status
   {

@@ -64,6 +64,9 @@ namespace dwa_local_planner {
         setup_ = true;
       }
 
+      this->original_xy_goal_tolerance_ = config.xy_goal_tolerance;
+      this->tug_mode_xy_goal_tolerance_scale_ = config.tug_mode_xy_goal_tolerance_scale;
+
       // update generic local planner params
       base_local_planner::LocalPlannerLimits limits;
       limits.max_vel_trans = config.max_vel_trans;
@@ -78,7 +81,7 @@ namespace dwa_local_planner {
       limits.acc_lim_y = config.acc_lim_y;
       limits.acc_lim_theta = config.acc_lim_theta;
       limits.acc_lim_trans = config.acc_lim_trans;
-      limits.xy_goal_tolerance = config.xy_goal_tolerance;
+      limits.xy_goal_tolerance = config.xy_goal_tolerance * this->current_tug_mode_xy_goal_tolerance_scale_;
       limits.yaw_goal_tolerance = config.yaw_goal_tolerance;
       limits.spin_turn_tolerance = config.spin_turn_tolerance;
       limits.spin_turn_vel_theta = config.spin_turn_vel_theta;
@@ -141,6 +144,8 @@ namespace dwa_local_planner {
       nav_core::warnRenamedParameter(private_nh, "min_vel_theta", "min_rot_vel");
       nav_core::warnRenamedParameter(private_nh, "acc_lim_trans", "acc_limit_trans");
       nav_core::warnRenamedParameter(private_nh, "theta_stopped_vel", "rot_stopped_vel");
+
+      this->current_tug_mode_xy_goal_tolerance_scale_ = 1.0;
 
       dsrv_ = new dynamic_reconfigure::Server<DWAPlannerConfig>(private_nh);
       dynamic_reconfigure::Server<DWAPlannerConfig>::CallbackType cb = boost::bind(&DWAPlannerROS::reconfigureCB, this, _1, _2);
@@ -579,6 +584,7 @@ namespace dwa_local_planner {
 
   void DWAPlannerROS::actuator_position_callback(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg)
   {
+    const double is_actuator_connect_prev = this->is_actuator_connect_;
     this->is_actuator_connect_ = msg->connect;
 
     // The decision should be delegated to the node responsible for Cargo Status at some point. => AMRCS-174
@@ -588,6 +594,22 @@ namespace dwa_local_planner {
       if (actuator_status::ACT_MID2 <= msg->position[0])
       {
         this->is_cargo_fixed_ = true;
+      }
+
+      if (is_actuator_connect_prev != this->is_actuator_connect_)
+      {
+        if (this->is_actuator_connect_)
+        {
+          this->current_tug_mode_xy_goal_tolerance_scale_ = tug_mode_xy_goal_tolerance_scale_;
+        }
+        else
+        {
+          this->current_tug_mode_xy_goal_tolerance_scale_ = 1.0;
+        }
+
+        base_local_planner::LocalPlannerLimits limits = planner_util_.getCurrentLimits();
+        limits.xy_goal_tolerance = this->original_xy_goal_tolerance_ * this->current_tug_mode_xy_goal_tolerance_scale_;
+        planner_util_.reconfigureCB(limits, false);
       }
     }
     else if (this->cargo_mode_ == "towing")

@@ -79,6 +79,9 @@ bool LatchedStopRotateController::isGoalReached(LocalPlannerUtil* planner_util,
   double theta_stopped_vel = planner_util->getCurrentLimits().theta_stopped_vel;
   double trans_stopped_vel = planner_util->getCurrentLimits().trans_stopped_vel;
 
+  // TODO (wada) debug code. remove later
+  ROS_WARN_THROTTLE(1.0, "xy_goal_tolerance: %f", xy_goal_tolerance);
+
   //copy over the odometry information
   nav_msgs::Odometry base_odom;
   odom_helper.getOdom(base_odom);
