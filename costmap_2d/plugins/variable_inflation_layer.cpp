@@ -356,6 +356,7 @@ inline void VariableInflationLayer::enqueue(unsigned int index, unsigned int mx,
 
 void VariableInflationLayer::computeCaches()
 {
+  boost::lock_guard<boost::mutex> guard(this->compute_caches_mutex_);
   if (cell_inflation_radius_ == 0)
     return;
 
