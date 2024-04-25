@@ -54,7 +54,6 @@
 #include "nav_msgs/SetMap.h"
 #include "std_srvs/Empty.h"
 #include "std_msgs/Float32.h"
-#include "std_msgs/Bool.h"
 
 // For transform support
 #include "tf2/LinearMath/Transform.h"
@@ -118,7 +117,7 @@ angle_diff(double a, double b)
     return(d2);
 }
 
-static std::string scan_topic_ = "scan";
+static const std::string scan_topic_ = "scan_amcl";
 
 /* This function is only useful to have the whole code work
  * with old rosbags that have trailing slashes for their frames
@@ -177,7 +176,6 @@ class AmclNode
     void initialPoseReceived(const geometry_msgs::PoseWithCovarianceStampedConstPtr& msg);
     void handleInitialPoseMessage(const geometry_msgs::PoseWithCovarianceStamped& msg);
     void mapReceived(const nav_msgs::OccupancyGridConstPtr& msg);
-    void scanZoneCallback(const std_msgs::Bool& msg);
 
     void handleMapMessage(const nav_msgs::OccupancyGrid& msg);
     void freeMapDependentMemory();
@@ -217,7 +215,6 @@ class AmclNode
     message_filters::Subscriber<sensor_msgs::LaserScan>* laser_scan_sub_;
     tf2_ros::MessageFilter<sensor_msgs::LaserScan>* laser_scan_filter_;
     ros::Subscriber initial_pose_sub_;
-    ros::Subscriber scan_zone_sub_;
     std::vector< AMCLLaser* > lasers_;
     std::vector< bool > lasers_update_;
     std::map< std::string, int > frame_to_laser_;
@@ -277,7 +274,6 @@ class AmclNode
     amcl_hyp_t* initial_pose_hyp_;
     bool first_map_received_;
     bool first_reconfigure_call_;
-    bool use_scan_hi_;
 
     boost::recursive_mutex configuration_mutex_;
     dynamic_reconfigure::Server<amcl::AMCLConfig> *dsrv_;
@@ -539,7 +535,6 @@ AmclNode::AmclNode() :
   laser_scan_filter_->registerCallback(boost::bind(&AmclNode::laserReceived,
                                                    this, _1));
   initial_pose_sub_ = nh_.subscribe("initialpose", 2, &AmclNode::initialPoseReceived, this);
-  scan_zone_sub_ = nh_.subscribe("use_scan_hi", 2, &AmclNode::scanZoneCallback, this);
 
   if(use_map_topic_) {
     map_sub_ = nh_.subscribe("map", 1, &AmclNode::mapReceived, this);
@@ -1854,13 +1849,6 @@ void
 AmclNode::initialPoseReceived(const geometry_msgs::PoseWithCovarianceStampedConstPtr& msg)
 {
   handleInitialPoseMessage(*msg);
-}
-
-void
-AmclNode::scanZoneCallback(const std_msgs::Bool& msg)
-{
-  use_scan_hi_ = msg.data;
-  scan_topic_ = use_scan_hi_ ? "scan_hi_intensity" : "scan";
 }
 
 void
