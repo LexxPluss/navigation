@@ -64,6 +64,9 @@ namespace dwa_local_planner {
         setup_ = true;
       }
 
+      this->original_xy_goal_tolerance_ = config.xy_goal_tolerance;
+      this->tug_mode_xy_goal_tolerance_scale_ = config.tug_mode_xy_goal_tolerance_scale;
+
       // update generic local planner params
       base_local_planner::LocalPlannerLimits limits;
       limits.max_vel_trans = config.max_vel_trans;
@@ -78,7 +81,7 @@ namespace dwa_local_planner {
       limits.acc_lim_y = config.acc_lim_y;
       limits.acc_lim_theta = config.acc_lim_theta;
       limits.acc_lim_trans = config.acc_lim_trans;
-      limits.xy_goal_tolerance = config.xy_goal_tolerance;
+      limits.xy_goal_tolerance = config.xy_goal_tolerance * this->current_tug_mode_xy_goal_tolerance_scale_;
       limits.yaw_goal_tolerance = config.yaw_goal_tolerance;
       limits.spin_turn_tolerance = config.spin_turn_tolerance;
       limits.spin_turn_vel_theta = config.spin_turn_vel_theta;
@@ -142,6 +145,8 @@ namespace dwa_local_planner {
       nav_core::warnRenamedParameter(private_nh, "acc_lim_trans", "acc_limit_trans");
       nav_core::warnRenamedParameter(private_nh, "theta_stopped_vel", "rot_stopped_vel");
 
+      this->current_tug_mode_xy_goal_tolerance_scale_ = 1.0;
+
       dsrv_ = new dynamic_reconfigure::Server<DWAPlannerConfig>(private_nh);
       dynamic_reconfigure::Server<DWAPlannerConfig>::CallbackType cb = boost::bind(&DWAPlannerROS::reconfigureCB, this, _1, _2);
       dsrv_->setCallback(cb);
@@ -160,6 +165,7 @@ namespace dwa_local_planner {
       private_nh.param("cargo_mode", this->cargo_mode_, std::string("loading")); // loading or towing or wani
 
       private_nh.param("cargo_limit_angle_deg", this->cargo_limit_angle_deg_, 90.0);
+      private_nh.param("use_euclidean_distance_logic", this->use_euclidean_distance_logic_, false);
 
       this->is_actuator_connect_ = false;
       this->rotate_to_goal_ = false;
@@ -461,18 +467,48 @@ namespace dwa_local_planner {
       }
 
       // transformed_plan is not empty
-      for (auto iter = closest_waypoint_iter; iter != transformed_plan.end(); iter++)
+      turn_target_pose = transformed_plan.back();
+
+      if (this->use_euclidean_distance_logic_)
       {
-        turn_target_pose = *iter;
-        double tmp_x = iter->pose.position.x;
-        double tmp_y = iter->pose.position.y;
-        double distance = std::sqrt(std::pow(current_x - tmp_x, 2) + std::pow(current_y - tmp_y, 2));
-        if (this->rotate_target_distance_ < distance)
+        // This logic is the old way of calculating the distance to rotate_target_distance in Euclidean distance.
+        // If there is any meandering within the rotate_target_distance, the look ahead point cannot be determined accurately.
+        // The old logic is optionally available for compatibility with past logic.
+
+        for (auto iter = closest_waypoint_iter; iter != transformed_plan.end(); iter++)
         {
-          break;
+          turn_target_pose = *iter;
+          double tmp_x = iter->pose.position.x;
+          double tmp_y = iter->pose.position.y;
+          double distance = std::sqrt(std::pow(current_x - tmp_x, 2) + std::pow(current_y - tmp_y, 2));
+          if (this->rotate_target_distance_ < distance)
+          {
+            break;
+          }
         }
       }
-      
+      else
+      {
+        double traveled_distance = 0.0;
+        for (auto iter = closest_waypoint_iter; iter != transformed_plan.end() ; ++iter)
+        {
+          // Skip calculation for the first point (closest waypoint itself)
+          if (iter != closest_waypoint_iter)
+          {
+            double prev_x = std::prev(iter)->pose.position.x;
+            double prev_y = std::prev(iter)->pose.position.y;
+            double tmp_x = iter->pose.position.x;
+            double tmp_y = iter->pose.position.y;
+            traveled_distance += std::sqrt(std::pow(prev_x - tmp_x, 2) + std::pow(prev_y - tmp_y, 2));
+          }
+          
+          if (this->rotate_target_distance_ < traveled_distance)
+          {
+            turn_target_pose = *iter;
+            break;
+          }
+        }
+      }
       double turn_target_x = turn_target_pose.pose.position.x;
       double turn_target_y = turn_target_pose.pose.position.y;
 
@@ -513,6 +549,10 @@ namespace dwa_local_planner {
         limits,
         boost::bind(&DWAPlanner::checkTrajectory, dp_, _1, _2, _3));
 
+      publishGlobalPlan(transformed_plan);
+      std::vector<geometry_msgs::PoseStamped> empty_local_plan;
+      publishLocalPlan(empty_local_plan);
+
       if (!was_rotate || std::abs(current_th - turn_target_th) < (5.0 * M_PI / 180.0))
       {
         this->rotate_to_goal_ = false;
@@ -544,6 +584,7 @@ namespace dwa_local_planner {
 
   void DWAPlannerROS::actuator_position_callback(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg)
   {
+    const double is_actuator_connect_prev = this->is_actuator_connect_;
     this->is_actuator_connect_ = msg->connect;
 
     // The decision should be delegated to the node responsible for Cargo Status at some point. => AMRCS-174
@@ -553,6 +594,22 @@ namespace dwa_local_planner {
       if (actuator_status::ACT_MID2 <= msg->position[0])
       {
         this->is_cargo_fixed_ = true;
+      }
+
+      if (is_actuator_connect_prev != this->is_actuator_connect_)
+      {
+        if (this->is_actuator_connect_)
+        {
+          this->current_tug_mode_xy_goal_tolerance_scale_ = tug_mode_xy_goal_tolerance_scale_;
+        }
+        else
+        {
+          this->current_tug_mode_xy_goal_tolerance_scale_ = 1.0;
+        }
+
+        base_local_planner::LocalPlannerLimits limits = planner_util_.getCurrentLimits();
+        limits.xy_goal_tolerance = this->original_xy_goal_tolerance_ * this->current_tug_mode_xy_goal_tolerance_scale_;
+        planner_util_.reconfigureCB(limits, false);
       }
     }
     else if (this->cargo_mode_ == "towing")
@@ -601,7 +658,7 @@ namespace dwa_local_planner {
         this->is_cargo_enabled_ = false;
       }
     }
-    ROS_INFO_STREAM("DWAPlannerROS :: is_cargo_enabled :: " << this->is_cargo_enabled_);
+    ROS_DEBUG_STREAM("DWAPlannerROS :: is_cargo_enabled :: " << this->is_cargo_enabled_);
 
     this->dp_->setCargoEnabled(this->is_cargo_enabled_);
     this->goalLatchedStopRotateController_.setCargoEnabled(this->is_cargo_enabled_);

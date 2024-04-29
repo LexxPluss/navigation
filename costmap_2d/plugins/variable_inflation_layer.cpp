@@ -198,12 +198,12 @@ double VariableInflationLayer::calculate_variable_inflation_radius()
   if (std::abs(measured_velocity) < min_inflation_vel_)
   {
     variable_inflation_radius = min_inflation_radius_;
-    ROS_INFO("inflation radius is min (%f) since velocity is low enough.", variable_inflation_radius);
+    ROS_INFO_THROTTLE(5, "inflation radius is min (%f) since velocity is low enough.", variable_inflation_radius);
   }
   else if (std::abs(measured_velocity) > max_inflation_vel_)
   {
     variable_inflation_radius = max_inflation_radius_;
-    ROS_INFO("inflation radius is max (%f) since velocity is large enough.", variable_inflation_radius);
+    ROS_INFO_THROTTLE(5, "inflation radius is max (%f) since velocity is large enough.", variable_inflation_radius);
   }
   else
   {
@@ -356,6 +356,7 @@ inline void VariableInflationLayer::enqueue(unsigned int index, unsigned int mx,
 
 void VariableInflationLayer::computeCaches()
 {
+  boost::lock_guard<boost::mutex> guard(this->compute_caches_mutex_);
   if (cell_inflation_radius_ == 0)
     return;
 

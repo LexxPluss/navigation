@@ -222,6 +222,8 @@ private:
   void reconfigureCB(costmap_2d::VariableInflationPluginConfig &config, uint32_t level);
 
   bool need_reinflation_;  ///< Indicates that the entire costmap should be reinflated next time around.
+
+  boost::mutex compute_caches_mutex_;
 };
 
 }  // namespace costmap_2d
