@@ -42,6 +42,7 @@
 #include <boost/thread.hpp>
 
 #include <geometry_msgs/Twist.h>
+#include <std_msgs/Float32.h>
 
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/utils.h>
@@ -97,6 +98,7 @@ namespace move_base {
     current_goal_pub_ = private_nh.advertise<geometry_msgs::PoseStamped>("current_goal", 0 );
     ros::NodeHandle action_nh("move_base");
     action_goal_pub_ = action_nh.advertise<move_base_msgs::MoveBaseActionGoal>("goal", 1);
+    dist_to_current_goal_pub_ = action_nh.advertise<std_msgs::Float32>("dist_to_current_goal", 1);
 
     //for robot status
     amr_status_pub_ = nh.advertise<std_msgs::String>("amr_status", 1);
@@ -706,6 +708,14 @@ namespace move_base {
     ros::NodeHandle n;
     while(n.ok())
     {
+
+      geometry_msgs::PoseStamped global_pose;
+      getRobotPose(global_pose, planner_costmap_ros_);
+      geometry_msgs::PoseStamped goal = goalToGlobalFrame(move_base_goal->target_pose);
+      std_msgs::Float32 dist;
+      dist.data = distance(global_pose, goal);
+      dist_to_current_goal_pub_.publish(dist);
+
       if(c_freq_change_)
       {
         ROS_INFO("Setting controller frequency to %.2f", controller_frequency_);

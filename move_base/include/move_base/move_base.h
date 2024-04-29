@@ -215,7 +215,7 @@ namespace move_base {
       int32_t max_planning_retries_;
       uint32_t planning_retries_;
       double conservative_reset_dist_, clearing_radius_, max_sim_time_, min_occdist_scale_;
-      ros::Publisher current_goal_pub_, vel_pub_, action_goal_pub_, amr_status_pub_;
+      ros::Publisher current_goal_pub_, vel_pub_, action_goal_pub_, amr_status_pub_, dist_to_current_goal_pub_;
       ros::Subscriber goal_sub_, carrying_status_sub_;
       ros::ServiceServer make_plan_srv_, clear_costmaps_srv_;
       bool shutdown_costmaps_, clearing_rotation_allowed_, recovery_behavior_enabled_, backward_recovery_allowed_, abort_after_recovery_allowed_;
