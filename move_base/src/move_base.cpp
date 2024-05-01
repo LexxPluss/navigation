@@ -98,7 +98,7 @@ namespace move_base {
     current_goal_pub_ = private_nh.advertise<geometry_msgs::PoseStamped>("current_goal", 0 );
     ros::NodeHandle action_nh("move_base");
     action_goal_pub_ = action_nh.advertise<move_base_msgs::MoveBaseActionGoal>("goal", 1);
-    dist_to_current_goal_pub_ = action_nh.advertise<std_msgs::Float32>("dist_to_current_goal", 1);
+    dist_to_current_goal_pub_ = private_nh.advertise<std_msgs::Float32>("move_base/dist_to_current_goal", 1);
     action_goal_sub_ = action_nh.subscribe<move_base_msgs::MoveBaseActionGoal>("goal", 1, boost::bind(&MoveBase::actionGoalCB, this, _1));
 
     //for robot status
@@ -727,7 +727,7 @@ namespace move_base {
 
       geometry_msgs::PoseStamped global_pose;
       getRobotPose(global_pose, planner_costmap_ros_);
-      geometry_msgs::PoseStamped goal = goalToGlobalFrame(move_base_goal->target_pose);
+      goal = goalToGlobalFrame(move_base_goal->target_pose);
       std_msgs::Float32 dist;
       dist.data = distance(global_pose, goal);
       dist_to_current_goal_pub_.publish(dist);
