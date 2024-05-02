@@ -1013,7 +1013,7 @@ namespace move_base {
           ROS_INFO("Detected stuck motion.");
           publishZeroVelocity();
           state_ = CLEARING;
-          recovery_trigger_ = MOTION_STACK_R;
+          recovery_trigger_ = MOTION_STUCK_R;
         }
 
         //check for an oscillation condition
@@ -1040,7 +1040,7 @@ namespace move_base {
             {
               resetRecovery();
             }
-            else if (recovery_trigger_ == MOTION_STACK_R)
+            else if (recovery_trigger_ == MOTION_STUCK_R)
             {
               if (detect_motion_abs_vx_ < abs(cmd_vel.linear.x) || detect_motion_abs_wz_ < abs(cmd_vel.angular.z))
               {
@@ -1120,7 +1120,7 @@ namespace move_base {
 
           ROS_DEBUG_NAMED("move_base_recovery","Something should abort after this.");
 
-          if(recovery_trigger_ == CONTROLLING_R || recovery_trigger_ == PLANNING_R || recovery_trigger_ == OSCILLATION_R || recovery_trigger_ == MOTION_STACK_R){
+          if(recovery_trigger_ == CONTROLLING_R || recovery_trigger_ == PLANNING_R || recovery_trigger_ == OSCILLATION_R || recovery_trigger_ == MOTION_STUCK_R){
             if(abort_after_recovery_allowed_){
               ROS_ERROR("Aborting because a valid control could not be found. Even after executing all recovery behaviors");
               as_->setAborted(move_base_msgs::MoveBaseResult(), "Failed to find a valid control. Even after executing recovery behaviors.");
