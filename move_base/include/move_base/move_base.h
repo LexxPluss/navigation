@@ -75,7 +75,7 @@ namespace move_base {
     PLANNING_R,
     CONTROLLING_R,
     OSCILLATION_R,
-    MOTION_STACK_R
+    MOTION_STUCK_R
   };
 
   /**
