@@ -1418,18 +1418,25 @@ namespace move_base {
       double dy = next_pose.pose.position.y - pose.pose.position.y;
       double new_vel = sqrt(dx * dx + dy * dy) / vel_dt;
 
+      // Note: Since new_vel is an unsigned value, the direction is determined by the vehicle's movement relative
+      //       to its own orientation. If the travel direction falls within -pi/2 to pi/2 rad of the vehicle's front,
+      //       it is considered forward movement. If it falls outside this range, it is considered backward movement.
       double moving_direction = atan2(dy, dx) - tf2::getYaw(pose.pose.orientation);
+      // normalize the angle to -pi to pi
       moving_direction = atan2(sin(moving_direction), cos(moving_direction));
       if (0 < cos(moving_direction))
       {
+        // Positive speed since vehicle is moving forward.
         new_vel = abs(new_vel);
       }
       else
       {
+        // Negative speed since vehicle is moving backward.
         new_vel = -abs(new_vel);
       }
 
       double d_yaw = tf2::getYaw(next_pose.pose.orientation) - tf2::getYaw(pose.pose.orientation);
+      // normalize the angle to -pi to pi
       d_yaw = atan2(sin(d_yaw), cos(d_yaw));
       double new_ang_vel = d_yaw / vel_dt;
 
@@ -1450,6 +1457,7 @@ namespace move_base {
     double pre_y = pre_global_pose.pose.position.y;
     double pre_yaw = tf2::getYaw(pre_global_pose.pose.orientation);
 
+    // Converted to displacements per sec
     double diff_x = (cur_x - pre_x) / pose_dt;
     double diff_y = (cur_y - pre_y) / pose_dt;
     double diff_euclidean = sqrt(diff_x * diff_x + diff_y * diff_y);
@@ -1473,10 +1481,10 @@ namespace move_base {
       detect_motion_stuck_count_ = 0;
     }
 
-    int detect_size = static_cast<int>(detect_motion_window_time_ * controller_frequency_);
-    detect_motion_stuck_count_ = std::max(std::min(detect_motion_stuck_count_, detect_size), 0);
+    const int detect_motion_stuck_threshold = static_cast<int>(detect_motion_window_time_ * controller_frequency_);
+    detect_motion_stuck_count_ = std::max(std::min(detect_motion_stuck_count_, detect_motion_stuck_threshold), 0);
 
-    if (detect_size <= detect_motion_stuck_count_)
+    if (detect_motion_stuck_threshold <= detect_motion_stuck_count_)
     {
       ROS_INFO("The robot is getting stuck.");
       detect_motion_stuck_count_ = 0;
