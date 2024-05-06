@@ -83,7 +83,20 @@ namespace move_base {
 
     private_nh.param("use_safety_direction_recovery_in_towing", use_safety_direction_recovery_in_towing_, true);
     private_nh.param("use_rotate_recovery_in_towing", use_rotate_recovery_in_towing_, true);
-    private_nh.param("frequent_recovery_motion", frequent_recovery_motion_, false);
+
+    // AMRCS-241 The problem of too easy entry into recovery was most likely caused by detectMotionStuck.
+    // This parameter is considered unnecessary, but it is left for a while in case something happens.
+    private_nh.param("frequent_recovery_motion", frequent_recovery_motion_, true);
+
+    private_nh.param("outer_loop_recovery_count", outer_loop_recovery_count_, 1);
+    private_nh.param("inner_loop_recovery_count", inner_loop_recovery_count_, 2);
+
+    private_nh.param("detect_motion_window_time", detect_motion_window_time_, 2.0);
+    private_nh.param("detect_motion_stuck_goal_diff_distance", detect_motion_stuck_goal_diff_distance_, 1.0);
+    private_nh.param("detect_motion_stuck_distance", detect_motion_stuck_distance_, 0.05);
+    private_nh.param("detect_motion_stuck_angle", detect_motion_stuck_angle_, 5 * M_PI / 180);
+    private_nh.param("detect_motion_abs_vx", detect_motion_abs_vx_, 0.05);
+    private_nh.param("detect_motion_abs_wz", detect_motion_abs_wz_, 5 * M_PI / 180);
 
     //set up plan triple buffer
     planner_plan_ = new std::vector<geometry_msgs::PoseStamped>();
@@ -172,6 +185,10 @@ namespace move_base {
       planner_costmap_ros_->stop();
       controller_costmap_ros_->stop();
     }
+
+    this->recovery_behaviors_ = boost::make_shared<std::vector<BehPtr>>();
+    this->recovery_behaviors_carrying_ = boost::make_shared<std::vector<BehPtr>>();
+    this->current_recovery_behaviors_ = this->recovery_behaviors_;
 
     /* TODO(AMRCS-32) The current plugin-based recovery_behaviors setting does not support recovery_behaviors_carrying,
        so if used, recovery will not be properly performed when towing.
@@ -306,7 +323,14 @@ namespace move_base {
 
   void MoveBase::carryingStatusCB(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg)
   {
-    actuator_position = *msg;
+    if (msg->connect)
+    {
+      this->current_recovery_behaviors_ = this->recovery_behaviors_carrying_;
+    }
+    else
+    {
+      this->current_recovery_behaviors_ = this->recovery_behaviors_;
+    }
   }
 
   void MoveBase::clearCostmapWindows(double size_x, double size_y){
@@ -475,8 +499,8 @@ namespace move_base {
   }
 
   MoveBase::~MoveBase(){
-    recovery_behaviors_.clear();
-    recovery_behaviors_carrying_.clear();
+    recovery_behaviors_->clear();
+    recovery_behaviors_carrying_->clear();
 
     delete dsrv_;
 
@@ -724,13 +748,35 @@ namespace move_base {
     ros::NodeHandle n;
     while(n.ok())
     {
+      // Get the current pose of the robot and store it in global_pose
+      {
+        geometry_msgs::PoseStamped global_pose;
+        getRobotPose(global_pose, planner_costmap_ros_);
 
-      geometry_msgs::PoseStamped global_pose;
-      getRobotPose(global_pose, planner_costmap_ros_);
-      goal = goalToGlobalFrame(move_base_goal->target_pose);
-      std_msgs::Float32 dist;
-      dist.data = distance(global_pose, goal);
-      dist_to_current_goal_pub_.publish(dist);
+        // Add the current pose to the global_pose_buffer_
+        this->global_pose_buffer_.push_back(global_pose);
+
+        // Remove old poses from the buffer
+        ros::Time current_time = ros::Time::now();
+        ros::Duration time_window(detect_motion_window_time_);
+        while (0 < this->global_pose_buffer_.size())
+        {
+          geometry_msgs::PoseStamped& pose = this->global_pose_buffer_.front();
+          if (time_window < current_time - pose.header.stamp)
+          {
+            this->global_pose_buffer_.pop_front();
+          }
+          else
+          {
+            break;
+          }
+        }
+        
+        goal = goalToGlobalFrame(move_base_goal->target_pose);
+        std_msgs::Float32 dist;
+        dist.data = distance(global_pose, goal);
+        dist_to_current_goal_pub_.publish(dist);
+      }
 
       if(c_freq_change_)
       {
@@ -974,6 +1020,7 @@ namespace move_base {
           ROS_INFO("Detected stuck motion.");
           publishZeroVelocity();
           state_ = CLEARING;
+          recovery_trigger_ = MOTION_STUCK_R;
         }
 
         //check for an oscillation condition
@@ -999,6 +1046,13 @@ namespace move_base {
             if(recovery_trigger_ == CONTROLLING_R)
             {
               resetRecovery();
+            }
+            else if (recovery_trigger_ == MOTION_STUCK_R)
+            {
+              if (detect_motion_abs_vx_ < abs(cmd_vel.linear.x) || detect_motion_abs_wz_ < abs(cmd_vel.angular.z))
+              {
+                resetRecovery();
+              }
             }
           }
           else {
@@ -1034,43 +1088,18 @@ namespace move_base {
       case CLEARING:
         ROS_DEBUG_NAMED("move_base","In clearing/recovery state");
         //we'll invoke whatever recovery behavior we're currently on if they're enabled
-        if(recovery_behavior_enabled_ && !actuator_position.connect && recovery_index_ < recovery_behaviors_.size()){
+        if(recovery_behavior_enabled_ && recovery_index_ < this->current_recovery_behaviors_->size()){
           amr_status_msg_.data = "RECOVERY";
           amr_status_pub_.publish(amr_status_msg_);
 
-          MoveBase::clearCostmaps();
-          ROS_INFO("Clear costmaps: line: %d", __LINE__);
+          // AMRCS-241 When the state is in recovery, it is too much to force Costmap to be reset at every step.
+          // MoveBase::clearCostmaps();
+          // ROS_INFO("Clear costmaps: line: %d", __LINE__);
 
           if (recovery_flag_ || frequent_recovery_motion_)
           {
-            ROS_INFO("Executing behavior %u of %zu", recovery_index_, recovery_behaviors_.size());
-            recovery_behaviors_[recovery_index_]->runBehavior();
-            recovery_index_++;
-          }
-
-          //we at least want to give the robot some time to stop oscillating after executing the behavior
-          last_oscillation_reset_ = ros::Time::now();
-
-          //we'll check if the recovery behavior actually worked
-          ROS_DEBUG_NAMED("move_base_recovery","Going back to planning state");
-          last_valid_plan_ = ros::Time::now();
-          planning_retries_ = 0;
-          state_ = PLANNING;
-
-          //update the index of the next recovery behavior that we'll try
-          recovery_flag_ = true;
-        }
-        else if(recovery_behavior_enabled_ && actuator_position.connect && recovery_index_ < recovery_behaviors_carrying_.size()){
-          amr_status_msg_.data = "RECOVERY";
-          amr_status_pub_.publish(amr_status_msg_);
-
-          MoveBase::clearCostmaps();
-          ROS_INFO("Clear costmaps: line: %d", __LINE__);
-
-          if (recovery_flag_ || frequent_recovery_motion_)
-          {
-            ROS_INFO("Executing behavior (carrying ver.) %u of %zu", recovery_index_, recovery_behaviors_carrying_.size());
-            recovery_behaviors_carrying_[recovery_index_]->runBehavior();
+            ROS_INFO("Executing behavior %u of %zu", recovery_index_, recovery_behaviors_->size());
+            (*recovery_behaviors_)[recovery_index_]->runBehavior();
             recovery_index_++;
           }
 
@@ -1098,7 +1127,7 @@ namespace move_base {
 
           ROS_DEBUG_NAMED("move_base_recovery","Something should abort after this.");
 
-          if(recovery_trigger_ == CONTROLLING_R || recovery_trigger_ == PLANNING_R || recovery_trigger_ == OSCILLATION_R){
+          if(recovery_trigger_ == CONTROLLING_R || recovery_trigger_ == PLANNING_R || recovery_trigger_ == OSCILLATION_R || recovery_trigger_ == MOTION_STUCK_R){
             if(abort_after_recovery_allowed_){
               ROS_ERROR("Aborting because a valid control could not be found. Even after executing all recovery behaviors");
               as_->setAborted(move_base_msgs::MoveBaseResult(), "Failed to find a valid control. Even after executing recovery behaviors.");
@@ -1190,7 +1219,7 @@ namespace move_base {
 
             //initialize the recovery behavior with its name
             behavior->initialize(behavior_list[i]["name"], &tf_, planner_costmap_ros_, controller_costmap_ros_);
-            recovery_behaviors_.push_back(behavior);
+            recovery_behaviors_->push_back(behavior);
           }
           catch(pluginlib::PluginlibException& ex){
             ROS_ERROR("Failed to load a plugin. Using default recovery behaviors. Error: %s", ex.what());
@@ -1215,15 +1244,14 @@ namespace move_base {
 
   //we'll load our default recovery behaviors here
   void MoveBase::loadDefaultRecoveryBehaviors(){
-    recovery_behaviors_.clear();
-    recovery_behaviors_carrying_.clear();
+    recovery_behaviors_->clear();
+    recovery_behaviors_carrying_->clear();
     try{
       //we need to set some parameters based on what's been passed in to us to maintain backwards compatibility
       ros::NodeHandle n("~");
       n.setParam("conservative_reset/reset_distance", conservative_reset_dist_);
       n.setParam("aggressive_reset/reset_distance", circumscribed_radius_ * 4);
 
-      typedef boost::shared_ptr<nav_core::RecoveryBehavior> BehPtr;
       typedef struct
       {
         std::string name;
@@ -1254,54 +1282,52 @@ namespace move_base {
         }
       };
 
-      constexpr int outer_loop_recovery_count = 3;
-      constexpr int inner_loop_recovery_count = 2;
-      for (int i = 0; i < outer_loop_recovery_count; i++)
+      for (int i = 0; i < this->outer_loop_recovery_count_; i++)
       {
         if (conservative_clearing_map_allowed_)
         {
-          recovery_behaviors_.push_back(makeBeh(cons_clear));
-          recovery_behaviors_carrying_.push_back(makeBeh(cons_clear));
+          recovery_behaviors_->push_back(makeBeh(cons_clear));
+          recovery_behaviors_carrying_->push_back(makeBeh(cons_clear));
         }
         if (aggressive_clearing_map_allowed_)
         {
-          recovery_behaviors_.push_back(makeBeh(ags_clear));
-          recovery_behaviors_carrying_.push_back(makeBeh(ags_clear));
+          recovery_behaviors_->push_back(makeBeh(ags_clear));
+          recovery_behaviors_carrying_->push_back(makeBeh(ags_clear));
         }
 
-        for (int j=0; j<inner_loop_recovery_count; j++)
+        for (int j=0; j < this->inner_loop_recovery_count_; j++)
         {
-          recovery_behaviors_.push_back(makeBeh(safety_direction));
+          recovery_behaviors_->push_back(makeBeh(safety_direction));
           if (use_safety_direction_recovery_in_towing_)
           {
-            recovery_behaviors_carrying_.push_back(makeBeh(safety_direction));
+            recovery_behaviors_carrying_->push_back(makeBeh(safety_direction));
           }
           else
           {
             if (backward_recovery_allowed_)
             {
-              recovery_behaviors_carrying_.push_back(makeBeh(go_back));
+              recovery_behaviors_carrying_->push_back(makeBeh(go_back));
             }
 
             if (clearing_rotation_allowed_ && rotate_small_angle_ != 0.0)
             {
-              recovery_behaviors_carrying_.push_back(makeBeh(rotate_small));
+              recovery_behaviors_carrying_->push_back(makeBeh(rotate_small));
             }
           }
         }
         if (clearing_rotation_allowed_)
         {
-          recovery_behaviors_.push_back(makeBeh(rotate));
+          recovery_behaviors_->push_back(makeBeh(rotate));
           if (use_rotate_recovery_in_towing_)
           {
-            recovery_behaviors_carrying_.push_back(makeBeh(rotate));
+            recovery_behaviors_carrying_->push_back(makeBeh(rotate));
           }
         }
 
         if (remove_virtual_obstacle_recovery_allowed_)
         {
-          recovery_behaviors_.push_back(makeBeh(remove_virtual_obstacle));
-          recovery_behaviors_carrying_.push_back(makeBeh(remove_virtual_obstacle));
+          recovery_behaviors_->push_back(makeBeh(remove_virtual_obstacle));
+          recovery_behaviors_carrying_->push_back(makeBeh(remove_virtual_obstacle));
         }
       }
 
@@ -1377,31 +1403,83 @@ namespace move_base {
 
   bool MoveBase::detectMotionStuck()
   {
-    geometry_msgs::PoseStamped global_pose;
-    getRobotPose(global_pose, planner_costmap_ros_);
+    if (this->global_pose_buffer_.size() < 2)
+    {
+      return false;
+    }
+
+    geometry_msgs::PoseStamped global_pose = this->global_pose_buffer_.back();
+
+    // calculate velocity and angular velocity.
+    constexpr double ALPHA = 0.1;
+    double vel = 0.0;
+    double ang_vel = 0.0;
+
+    for (int i = 0; i < this->global_pose_buffer_.size() - 1; i++)
+    {
+      geometry_msgs::PoseStamped& pose = this->global_pose_buffer_[i];
+      geometry_msgs::PoseStamped& next_pose = this->global_pose_buffer_[i + 1];
+
+      double vel_dt = (next_pose.header.stamp - pose.header.stamp).toSec();
+      double dx = next_pose.pose.position.x - pose.pose.position.x;
+      double dy = next_pose.pose.position.y - pose.pose.position.y;
+      double new_vel = sqrt(dx * dx + dy * dy) / vel_dt;
+
+      // Note: Since new_vel is an unsigned value, the direction is determined by the vehicle's movement relative
+      //       to its own orientation. If the travel direction falls within -pi/2 to pi/2 rad of the vehicle's front,
+      //       it is considered forward movement. If it falls outside this range, it is considered backward movement.
+      double moving_direction = atan2(dy, dx) - tf2::getYaw(pose.pose.orientation);
+      // normalize the angle to -pi to pi
+      moving_direction = atan2(sin(moving_direction), cos(moving_direction));
+      if (0 < cos(moving_direction))
+      {
+        // Positive speed since vehicle is moving forward.
+        new_vel = abs(new_vel);
+      }
+      else
+      {
+        // Negative speed since vehicle is moving backward.
+        new_vel = -abs(new_vel);
+      }
+
+      double d_yaw = tf2::getYaw(next_pose.pose.orientation) - tf2::getYaw(pose.pose.orientation);
+      // normalize the angle to -pi to pi
+      d_yaw = atan2(sin(d_yaw), cos(d_yaw));
+      double new_ang_vel = d_yaw / vel_dt;
+
+      // low pass filter
+      vel = (1.0 - ALPHA) * vel + ALPHA * new_vel;
+      ang_vel = (1.0 - ALPHA) * ang_vel + ALPHA * new_ang_vel;
+    }
+
+    geometry_msgs::PoseStamped pre_global_pose = this->global_pose_buffer_.front();
+    ros::Duration time_diff = global_pose.header.stamp - pre_global_pose.header.stamp;
+    double pose_dt = time_diff.toSec();
 
     double cur_x = global_pose.pose.position.x;
     double cur_y = global_pose.pose.position.y;
     double cur_yaw = tf2::getYaw(global_pose.pose.orientation);
 
-    double diff_x = cur_x - pre_body_x_;
-    double diff_y = cur_y - pre_body_y_;
-    double diff_yaw = cur_yaw - pre_body_yaw_;
+    double pre_x = pre_global_pose.pose.position.x;
+    double pre_y = pre_global_pose.pose.position.y;
+    double pre_yaw = tf2::getYaw(pre_global_pose.pose.orientation);
+
+    // Converted to displacements per sec
+    double diff_x = (cur_x - pre_x) / pose_dt;
+    double diff_y = (cur_y - pre_y) / pose_dt;
+    double diff_euclidean = sqrt(diff_x * diff_x + diff_y * diff_y);
+
+    double diff_yaw = (cur_yaw - pre_yaw) / pose_dt;
 
     double goal_diff_x = planner_goal_.pose.position.x - cur_x;
     double goal_diff_y = planner_goal_.pose.position.y - cur_y;
+    double goal_diff_euclidean = sqrt(goal_diff_x * goal_diff_x + goal_diff_y * goal_diff_y);
 
-    double detect_motion_stuck_goal_diff_distance = 1.0;
-    double detect_motion_stuck_distance = 0.15;
-    double detect_motion_stuck_angle = 0.15; // about 8.5 degree
-    double detect_motion_abs_vx = 0.1;
-    double detect_motion_abs_wz = 0.2;
-
-    if (sqrt(goal_diff_x*goal_diff_x + goal_diff_y*goal_diff_y) > detect_motion_stuck_goal_diff_distance &&
-        sqrt(diff_x*diff_x + diff_y*diff_y) < detect_motion_stuck_distance &&
-        abs(diff_yaw) < detect_motion_stuck_angle &&
-        abs(cmd_vel_.linear.x)  < detect_motion_abs_vx &&
-        abs(cmd_vel_.angular.z) < detect_motion_abs_wz)
+    if (detect_motion_stuck_goal_diff_distance_ < goal_diff_euclidean
+      && diff_euclidean < detect_motion_stuck_distance_
+      && abs(diff_yaw) < detect_motion_stuck_angle_
+      && abs(vel) < detect_motion_abs_vx_
+      && abs(ang_vel) < detect_motion_abs_wz_)
     {
       detect_motion_stuck_count_++;
     }
@@ -1410,16 +1488,15 @@ namespace move_base {
       detect_motion_stuck_count_ = 0;
     }
 
-    if (detect_motion_stuck_count_ >= 20)
+    const int detect_motion_stuck_threshold = static_cast<int>(detect_motion_window_time_ * controller_frequency_);
+    detect_motion_stuck_count_ = std::max(std::min(detect_motion_stuck_count_, detect_motion_stuck_threshold), 0);
+
+    if (detect_motion_stuck_threshold <= detect_motion_stuck_count_)
     {
       ROS_INFO("The robot is getting stuck.");
       detect_motion_stuck_count_ = 0;
       return true;
     }
-
-    pre_body_x_ = cur_x;
-    pre_body_y_ = cur_y;
-    pre_body_yaw_ = cur_yaw;
 
     return false;
   }
