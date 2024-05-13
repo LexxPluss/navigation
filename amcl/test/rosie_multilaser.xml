@@ -8,7 +8,7 @@ Setting pose: 33.118 34.530 -0.519
           args="-d 5 -r 1 --clock --hz 10 $(find amcl)/test/rosie_localization_stage.bag"/>
     <node name="map_server" pkg="map_server" type="map_server" args="$(find amcl)/test/willow-full-0.05.pgm 0.05"/>
     <node pkg="amcl" type="amcl" name="amcl" respawn="false" output="screen">
-      <remap from="scan" to="base_scan" />
+      <remap from="scan_amcl" to="base_scan" />
       <param name="transform_tolerance" value="0.2" />
       <param name="gui_publish_rate" value="10.0"/>
       <param name="save_pose_rate" value="0.5"/>
