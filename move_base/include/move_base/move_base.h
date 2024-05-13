@@ -74,7 +74,8 @@ namespace move_base {
   {
     PLANNING_R,
     CONTROLLING_R,
-    OSCILLATION_R
+    OSCILLATION_R,
+    MOTION_STUCK_R
   };
 
   /**
@@ -208,10 +209,15 @@ namespace move_base {
       boost::shared_ptr<nav_core::BaseGlobalPlanner> planner_;
       std::string robot_base_frame_, global_frame_;
 
-      std::vector<boost::shared_ptr<nav_core::RecoveryBehavior> > recovery_behaviors_, recovery_behaviors_carrying_;
+      typedef boost::shared_ptr<nav_core::RecoveryBehavior> BehPtr;
+      boost::shared_ptr<std::vector<BehPtr>> current_recovery_behaviors_;
+      boost::shared_ptr<std::vector<BehPtr>> recovery_behaviors_;
+      boost::shared_ptr<std::vector<BehPtr>> recovery_behaviors_carrying_;
       unsigned int recovery_index_;
       bool recovery_flag_ = false;
-      bool frequent_recovery_motion_ = false;
+      bool frequent_recovery_motion_ = true;
+      int outer_loop_recovery_count_;
+      int inner_loop_recovery_count_;
 
       geometry_msgs::PoseStamped global_pose_;
       std_msgs::String amr_status_msg_;
@@ -220,7 +226,7 @@ namespace move_base {
       int32_t max_planning_retries_;
       uint32_t planning_retries_;
       double conservative_reset_dist_, clearing_radius_, max_sim_time_, min_occdist_scale_;
-      ros::Publisher current_goal_pub_, vel_pub_, action_goal_pub_, amr_status_pub_, virtual_obstacle_enabled_pub_;
+      ros::Publisher current_goal_pub_, vel_pub_, action_goal_pub_, amr_status_pub_, virtual_obstacle_enabled_pub_, dist_to_current_goal_pub_;
       ros::Subscriber goal_sub_, carrying_status_sub_, action_goal_sub_;
       ros::ServiceServer make_plan_srv_, clear_costmaps_srv_;
       bool shutdown_costmaps_, clearing_rotation_allowed_, recovery_behavior_enabled_, backward_recovery_allowed_, abort_after_recovery_allowed_;
@@ -228,10 +234,17 @@ namespace move_base {
       bool conservative_clearing_map_allowed_, aggressive_clearing_map_allowed_;
       double oscillation_timeout_, oscillation_distance_;
       double rotate_small_angle_;
-      lexxauto_msgs::ActuatorStatus actuator_position;
 
       MoveBaseState state_;
       RecoveryTrigger recovery_trigger_;
+
+      std::deque<geometry_msgs::PoseStamped> global_pose_buffer_;
+      double detect_motion_window_time_;
+      double detect_motion_stuck_goal_diff_distance_;
+      double detect_motion_stuck_distance_;
+      double detect_motion_stuck_angle_;
+      double detect_motion_abs_vx_;
+      double detect_motion_abs_wz_;
 
       ros::Time last_valid_plan_, last_valid_control_, last_oscillation_reset_;
       geometry_msgs::PoseStamped oscillation_pose_;
