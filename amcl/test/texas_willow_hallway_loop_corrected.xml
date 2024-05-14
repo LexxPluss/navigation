@@ -5,7 +5,7 @@
     <node name="rosbag" pkg="rosbag" type="play"
           args="-s 15.0 -d 1 -r 1 --clock --hz 10 $(find amcl)/test/texas_willow_hallway_loop_indexed.bag"/>
     <node pkg="amcl" type="amcl" name="amcl" respawn="false" output="screen">
-      <remap from="scan" to="base_scan" />
+      <remap from="scan_amcl" to="base_scan" />
       <param name="transform_tolerance" value="0.2"/>
       <param name="gui_publish_rate" value="10.0"/>
       <param name="save_pose_rate" value="0.5"/>

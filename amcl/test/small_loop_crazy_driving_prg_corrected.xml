@@ -5,7 +5,7 @@
           args="-s 0.0 -d 5 -r 1 --clock --hz 10 $(find amcl)/test/small_loop_crazy_driving_prg_indexed.bag"/>
     <node name="map_sever" pkg="map_server" type="map_server" args="$(find amcl)/test/willow-full.pgm 0.1"/>
     <node pkg="amcl" type="amcl" name="amcl" respawn="false" output="screen">
-      <remap from="scan" to="base_scan" />
+      <remap from="scan_amcl" to="base_scan" />
       <param name="transform_tolerance" value="0.2" />
       <param name="gui_publish_rate" value="10.0"/>
       <param name="save_pose_rate" value="0.5"/>
