@@ -202,9 +202,7 @@ if(CATKIN_ENABLE_TESTING)
   target_link_libraries(coordinates_test costmap_2d)
 endif()
 
-if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g ")
-endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g ")
 
 install( TARGETS
     costmap_2d_markers
