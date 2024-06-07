@@ -44,15 +44,29 @@ class MapGenerator
 {
 
   public:
-    MapGenerator(const std::string& mapname, int threshold_occupied, int threshold_free)
-      : mapname_(mapname), saved_map_(false), threshold_occupied_(threshold_occupied), threshold_free_(threshold_free)
+    MapGenerator(const std::string& mapname1, const std::string& mapname2, int threshold_occupied, int threshold_free)
+      : mapname1_(mapname1), mapname2_(mapname2), saved_map1_(false), saved_map2_(false), threshold_occupied_(threshold_occupied), threshold_free_(threshold_free)
     {
       ros::NodeHandle n;
-      ROS_INFO("Waiting for the map");
-      map_sub_ = n.subscribe("map", 1, &MapGenerator::mapCallback, this);
+      ROS_INFO("Waiting for the maps");
+
+      map_sub1_ = n.subscribe("map", 1, &MapGenerator::mapCallback1, this);
+      map_sub2_ = n.subscribe("map_hi_intensity", 1, &MapGenerator::mapCallback2, this);
     }
 
-    void mapCallback(const nav_msgs::OccupancyGridConstPtr& map)
+    void mapCallback1(const nav_msgs::OccupancyGridConstPtr& map)
+    {
+      saveMap(map, mapname1_);
+      saved_map1_ = true;
+    }
+
+    void mapCallback2(const nav_msgs::OccupancyGridConstPtr& map)
+    {
+      saveMap(map, mapname2_);
+      saved_map2_ = true;
+    }
+
+    void saveMap(const nav_msgs::OccupancyGridConstPtr& map, const std::string& mapname)
     {
       ROS_INFO("Received a %d X %d map @ %.3f m/pix",
                map->info.width,
@@ -60,7 +74,7 @@ class MapGenerator
                map->info.resolution);
 
 
-      std::string mapdatafile = mapname_ + ".pgm";
+      std::string mapdatafile = mapname + ".pgm";
       ROS_INFO("Writing map occupancy data to %s", mapdatafile.c_str());
       FILE* out = fopen(mapdatafile.c_str(), "w");
       if (!out)
@@ -87,7 +101,7 @@ class MapGenerator
       fclose(out);
 
 
-      std::string mapmetadatafile = mapname_ + ".yaml";
+      std::string mapmetadatafile = mapname + ".yaml";
       ROS_INFO("Writing map occupancy data to %s", mapmetadatafile.c_str());
       FILE* yaml = fopen(mapmetadatafile.c_str(), "w");
 
@@ -118,12 +132,14 @@ free_thresh: 0.196
       fclose(yaml);
 
       ROS_INFO("Done\n");
-      saved_map_ = true;
     }
 
-    std::string mapname_;
-    ros::Subscriber map_sub_;
-    bool saved_map_;
+    std::string mapname1_;
+    std::string mapname2_;
+    ros::Subscriber map_sub1_;
+    ros::Subscriber map_sub2_;
+    bool saved_map1_;
+    bool saved_map2_;
     int threshold_occupied_;
     int threshold_free_;
 
@@ -131,12 +147,13 @@ free_thresh: 0.196
 
 #define USAGE "Usage: \n" \
               "  map_saver -h\n"\
-              "  map_saver [--occ <threshold_occupied>] [--free <threshold_free>] [-f <mapname>] [ROS remapping args]"
+              "  map_saver [--occ <threshold_occupied>] [--free <threshold_free>] [-scan <mapname1>] [-scan_hi <mapname2>] [ROS remapping args]"
 
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "map_saver");
-  std::string mapname = "map";
+  std::string mapname1 = "map1";
+  std::string mapname2 = "map2";
   int threshold_occupied = 65;
   int threshold_free = 25;
 
@@ -147,10 +164,20 @@ int main(int argc, char** argv)
       puts(USAGE);
       return 0;
     }
-    else if(!strcmp(argv[i], "-f"))
+    else if(!strcmp(argv[i], "-scan"))
     {
       if(++i < argc)
-        mapname = argv[i];
+        mapname1 = argv[i];
+      else
+      {
+        puts(USAGE);
+        return 1;
+      }
+    }
+    else if(!strcmp(argv[i], "-scan_hi"))
+    {
+      if(++i < argc)
+        mapname2 = argv[i];
       else
       {
         puts(USAGE);
@@ -206,9 +233,9 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  MapGenerator mg(mapname, threshold_occupied, threshold_free);
+  MapGenerator mg(mapname1, mapname2, threshold_occupied, threshold_free);
 
-  while(!mg.saved_map_ && ros::ok())
+  while((!mg.saved_map1_ || !mg.saved_map2_) && ros::ok())
     ros::spinOnce();
 
   return 0;
