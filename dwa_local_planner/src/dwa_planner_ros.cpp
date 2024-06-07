@@ -716,11 +716,7 @@ namespace dwa_local_planner {
 
   void DWAPlannerROS::check_cargo_angle()
   {
-    if (this->use_carrying_manager_)
-    {
-      this->is_cargo_enabled_ = !this->is_cargo_fixed_;
-    }
-    else
+    if (!this->use_carrying_manager_)
     {
       if (this->is_cargo_enabled_)
       {
