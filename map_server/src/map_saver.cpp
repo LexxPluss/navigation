@@ -44,14 +44,16 @@ class MapGenerator
 {
 
   public:
-    MapGenerator(const std::string& mapname1, const std::string& mapname2, int threshold_occupied, int threshold_free)
-      : mapname1_(mapname1), mapname2_(mapname2), saved_map1_(false), saved_map2_(false), threshold_occupied_(threshold_occupied), threshold_free_(threshold_free)
+    MapGenerator(const std::string& mapname1, const std::string& mapname2, int threshold_occupied, int threshold_free, bool single_map)
+      : mapname1_(mapname1), mapname2_(mapname2), saved_map1_(false), saved_map2_(false), threshold_occupied_(threshold_occupied), threshold_free_(threshold_free), single_map_(single_map)
     {
       ros::NodeHandle n;
       ROS_INFO("Waiting for the maps");
 
       map_sub1_ = n.subscribe("map", 1, &MapGenerator::mapCallback1, this);
-      map_sub2_ = n.subscribe("map_hi_intensity", 1, &MapGenerator::mapCallback2, this);
+      if (!single_map_) {
+        map_sub2_ = n.subscribe("map_hi_intensity", 1, &MapGenerator::mapCallback2, this);
+      }
     }
 
     void mapCallback1(const nav_msgs::OccupancyGridConstPtr& map)
@@ -142,7 +144,7 @@ free_thresh: 0.196
     bool saved_map2_;
     int threshold_occupied_;
     int threshold_free_;
-
+    bool single_map_;
 };
 
 #define USAGE "Usage: \n" \
@@ -156,6 +158,7 @@ int main(int argc, char** argv)
   std::string mapname2 = "map2";
   int threshold_occupied = 65;
   int threshold_free = 25;
+  bool single_map = true;
 
   for(int i=1; i<argc; i++)
   {
@@ -176,8 +179,10 @@ int main(int argc, char** argv)
     }
     else if(!strcmp(argv[i], "-scan_hi"))
     {
-      if(++i < argc)
+      if(++i < argc) {
         mapname2 = argv[i];
+        single_map = false;
+      }
       else
       {
         puts(USAGE);
@@ -233,9 +238,9 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  MapGenerator mg(mapname1, mapname2, threshold_occupied, threshold_free);
+  MapGenerator mg(mapname1, mapname2, threshold_occupied, threshold_free, single_map);
 
-  while((!mg.saved_map1_ || !mg.saved_map2_) && ros::ok())
+  while((!mg.saved_map1_ || (!single_map && !mg.saved_map2_)) && ros::ok())
     ros::spinOnce();
 
   return 0;
