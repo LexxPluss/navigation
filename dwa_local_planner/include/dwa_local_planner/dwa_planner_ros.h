@@ -53,6 +53,7 @@
 #include <std_msgs/Float64.h>
 #include <std_srvs/Empty.h>
 #include <visualization_msgs/Marker.h>
+#include <lexxauto_msgs/CarryingInformation.h>
 
 #include <costmap_2d/costmap_2d_ros.h>
 #include <nav_core/base_local_planner.h>
@@ -123,12 +124,18 @@ namespace dwa_local_planner {
 
       void cargo_angle_callback(const std_msgs::Float64::ConstPtr& msg);
 
+      void carrying_info_callback(const lexxauto_msgs::CarryingInformation::ConstPtr& msg);
+
       void call_nomotion_update_callback(const ros::TimerEvent& event);
       bool isInitialized() {
         return initialized_;
       }
 
     private:
+
+      // feature switch flag
+      bool use_carrying_manager_;
+
       /**
        * @brief Callback to update the local planner's parameters based on dynamic reconfigure
        */
@@ -150,6 +157,7 @@ namespace dwa_local_planner {
       ros::ServiceClient nomotion_update_client_;
       ros::Timer nomotion_update_timer_;
       ros::Subscriber cargo_angle_sub_;
+      ros::Subscriber carrying_info_sub_;
 
       std_msgs::UInt8 vel_cmd_mode_msg_;
       visualization_msgs::Marker vel_cmd_mode_marker_msg_;
@@ -187,6 +195,7 @@ namespace dwa_local_planner {
       double rotate_start_threshold_vel_;
       double rotate_start_threshold_angular_vel_;
       bool is_actuator_connect_;
+      bool is_weight_applied_;
       double backward_rotate_time_;
       ros::Time rotate_goal_time_;
       bool rotate_to_goal_;
