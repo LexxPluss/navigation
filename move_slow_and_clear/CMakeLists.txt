@@ -40,6 +40,8 @@ target_link_libraries(${PROJECT_NAME}
     ${catkin_LIBRARIES}
     )
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
+
 ## Install project namespaced headers
 install(DIRECTORY include/${PROJECT_NAME}/
     DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}

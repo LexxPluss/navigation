@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(rotate_small_recovery)
 
-find_package(catkin REQUIRED 
+find_package(catkin REQUIRED
   COMPONENTS
     angles
     base_local_planner
@@ -36,6 +36,8 @@ catkin_package(
 add_library(rotate_small_recovery src/rotate_small_recovery.cpp)
 add_dependencies(rotate_small_recovery ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(rotate_small_recovery ${catkin_LIBRARIES})
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
 
 install(TARGETS ${PROJECT_NAME}
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
