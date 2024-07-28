@@ -261,9 +261,6 @@ namespace dwa_local_planner {
       double y = goal_pose.pose.position.y - current_pose_.pose.position.y;
       double d = std::sqrt(x * x + y * y);
       double xy_goal_tolerance = planner_util_.getCurrentLimits().xy_goal_tolerance;
-      ROS_INFO("goal_pose x %f, goal_pose y %f", goal_pose.pose.position.x, goal_pose.pose.position.y);
-      ROS_INFO("current_pose x %f, current_pose y %f", current_pose_.pose.position.x, current_pose_.pose.position.y);
-      ROS_INFO("xy_goal_tolerance : %f, d : %f", xy_goal_tolerance, d);
       if (xy_goal_tolerance < d)
       {
         ROS_WARN("Not reaching goal.");
@@ -271,6 +268,9 @@ namespace dwa_local_planner {
         return false;
       }
 
+      ROS_INFO("goal_pose x %f, goal_pose y %f", goal_pose.pose.position.x, goal_pose.pose.position.y);
+      ROS_INFO("current_pose x %f, current_pose y %f", current_pose_.pose.position.x, current_pose_.pose.position.y);
+      ROS_INFO("xy_goal_tolerance : %f, d : %f", xy_goal_tolerance, d);
       ROS_INFO("Goal reached");
       return true;
     } else {

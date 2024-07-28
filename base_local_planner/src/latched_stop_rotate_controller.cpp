@@ -97,6 +97,8 @@ bool LatchedStopRotateController::isGoalReached(LocalPlannerUtil* planner_util,
   //check to see if we've reached the goal position
   if ((latch_xy_goal_tolerance_ && xy_tolerance_latch_) ||
       base_local_planner::getGoalPositionDistance(global_pose, goal_x, goal_y) <= xy_goal_tolerance) {
+    ROS_INFO("global pose x : %.3f, x : %.3f\ngoal_x: %.3f, goal_y: %.3f\nxy_goal_tolerance: %.3f",
+             global_pose.pose.position.x, global_pose.pose.position.y, goal_x, goal_y, xy_goal_tolerance);
     //if the user wants to latch goal tolerance, if we ever reach the goal location, we'll
     //just rotate in place
     if (latch_xy_goal_tolerance_ && ! xy_tolerance_latch_) {

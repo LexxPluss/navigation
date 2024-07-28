@@ -98,6 +98,7 @@ bool LocalPlannerUtil::setPlan(const std::vector<geometry_msgs::PoseStamped>& or
   global_plan_.clear();
 
   global_plan_ = orig_global_plan;
+  ROS_INFO("update global_plan_");
 
   return true;
 }
