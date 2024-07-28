@@ -36,6 +36,8 @@ add_library(go_back_recovery src/go_back_recovery.cpp)
 add_dependencies(go_back_recovery ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(go_back_recovery ${catkin_LIBRARIES})
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
+
 install(TARGETS go_back_recovery
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
