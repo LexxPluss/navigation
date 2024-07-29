@@ -751,7 +751,6 @@ namespace move_base {
     runPlanner_ = true;
     planner_cond_.notify_one();
     lock.unlock();
-    ROS_INFO("update runPlanner_#1");
 
     current_goal_pub_.publish(goal);
     std::vector<geometry_msgs::PoseStamped> global_plan;
@@ -833,7 +832,6 @@ namespace move_base {
           runPlanner_ = true;
           planner_cond_.notify_one();
           lock.unlock();
-          ROS_INFO("update runPlanner_#2");
 
           //publish the goal point to the visualizer
           ROS_DEBUG_NAMED("move_base","move_base has received a goal of x: %.2f, y: %.2f", goal.pose.position.x, goal.pose.position.y);
@@ -875,7 +873,6 @@ namespace move_base {
         runPlanner_ = true;
         planner_cond_.notify_one();
         lock.unlock();
-        ROS_INFO("update runPlanner_#3");
 
         //publish the goal point to the visualizer
         ROS_DEBUG_NAMED("move_base","The global frame for move_base has changed, new frame: %s, new goal position x: %.2f, y: %.2f", goal.header.frame_id.c_str(), goal.pose.position.x, goal.pose.position.y);
@@ -914,7 +911,6 @@ namespace move_base {
     runPlanner_ = true;
     planner_cond_.notify_one();
     lock.unlock();
-    ROS_INFO("update runPlanner_#4");
 
     //if the node is killed then we'll abort and return
     amr_status_msg_.data = "ABORTED";
@@ -988,7 +984,6 @@ namespace move_base {
         lock.lock();
         runPlanner_ = false;
         lock.unlock();
-        ROS_INFO("update runPlanner_#5");
 
         amr_status_msg_.data = "ABORTED";
         amr_status_pub_.publish(amr_status_msg_);
@@ -1012,7 +1007,6 @@ namespace move_base {
           boost::recursive_mutex::scoped_lock lock(planner_mutex_);
           runPlanner_ = true;
           planner_cond_.notify_one();
-          ROS_INFO("update runPlanner_#6");
         }
         amr_status_msg_.data = "PLANNING";
         amr_status_pub_.publish(amr_status_msg_);
@@ -1032,7 +1026,6 @@ namespace move_base {
           boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
           runPlanner_ = false;
           lock.unlock();
-          ROS_INFO("update runPlanner_#7( local planner goal reached )");
 
           amr_status_msg_.data = "SUCCEEDED";
           amr_status_pub_.publish(amr_status_msg_);
@@ -1108,7 +1101,6 @@ namespace move_base {
               runPlanner_ = true;
               planner_cond_.notify_one();
               lock.unlock();
-              ROS_INFO("update runPlanner_#8");
             }
           }
         }
@@ -1155,7 +1147,6 @@ namespace move_base {
           boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
           runPlanner_ = false;
           lock.unlock();
-          ROS_INFO("update runPlanner_#9");
 
           ROS_DEBUG_NAMED("move_base_recovery","Something should abort after this.");
 
@@ -1182,7 +1173,6 @@ namespace move_base {
         boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
         runPlanner_ = false;
         lock.unlock();
-        ROS_INFO("update runPlanner_#10");
         as_->setAborted(move_base_msgs::MoveBaseResult(), "Reached a case that should not be hit in move_base. This is a bug, please report it.");
         return true;
     }
@@ -1377,7 +1367,6 @@ namespace move_base {
     boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
     runPlanner_ = false;
     lock.unlock();
-    ROS_INFO("update runPlanner_#11");
 
     // Reset statemachine
     state_ = PLANNING;
