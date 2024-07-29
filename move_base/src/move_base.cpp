@@ -678,10 +678,10 @@ namespace move_base {
 
       if(gotPlan){
         ROS_DEBUG_NAMED("move_base_plan_thread","Got Plan with %zu points!", planner_plan_->size());
-        //pointer swap the plans under mutex (the controller will pull from latest_plan_)
-        std::vector<geometry_msgs::PoseStamped>* temp_plan = planner_plan_;
 
+        //pointer swap the plans under mutex (the controller will pull from latest_plan_)
         lock.lock();
+        std::vector<geometry_msgs::PoseStamped>* temp_plan = planner_plan_;
         planner_plan_ = latest_plan_;
         latest_plan_ = temp_plan;
         last_valid_plan_ = ros::Time::now();
@@ -967,9 +967,8 @@ namespace move_base {
       ROS_DEBUG_NAMED("move_base","Got a new plan...swap pointers");
 
       //do a pointer swap under mutex
-      std::vector<geometry_msgs::PoseStamped>* temp_plan = controller_plan_;
-
       boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
+      std::vector<geometry_msgs::PoseStamped>* temp_plan = controller_plan_;
       controller_plan_ = latest_plan_;
       latest_plan_ = temp_plan;
       lock.unlock();
