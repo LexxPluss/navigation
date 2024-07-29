@@ -19,6 +19,7 @@ catkin_package(
             costmap_2d
 )
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
 
 ## Install project namespaced headers
 install(DIRECTORY include/${PROJECT_NAME}/
