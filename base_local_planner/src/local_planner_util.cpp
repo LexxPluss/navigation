@@ -94,7 +94,7 @@ bool LocalPlannerUtil::setPlan(const std::vector<geometry_msgs::PoseStamped>& or
     return false;
   }
 
-  ROS_INFO("setPlan begin")
+  ROS_INFO("setPlan begin");
   if (global_plan_.size() > 0)
   {
     ROS_INFO("global_plan_ (x, y)      : (%.3f, %.3f)",
