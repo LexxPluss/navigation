@@ -671,6 +671,7 @@ namespace move_base {
       geometry_msgs::PoseStamped temp_goal = planner_goal_;
       lock.unlock();
       ROS_DEBUG_NAMED("move_base_plan_thread","Planning...");
+      ROS_INFO("temp_goal(planner_goal_) = (%.3f, %.3f)", temp_goal.pose.position.x, temp_goal.pose.position.y);
 
       //run planner
       planner_plan_->clear();
@@ -679,9 +680,9 @@ namespace move_base {
       if(gotPlan){
         ROS_DEBUG_NAMED("move_base_plan_thread","Got Plan with %zu points!", planner_plan_->size());
 
+        std::vector<geometry_msgs::PoseStamped>* temp_plan = planner_plan_;
         //pointer swap the plans under mutex (the controller will pull from latest_plan_)
         lock.lock();
-        std::vector<geometry_msgs::PoseStamped>* temp_plan = planner_plan_;
         planner_plan_ = latest_plan_;
         latest_plan_ = temp_plan;
         last_valid_plan_ = ros::Time::now();
@@ -735,6 +736,7 @@ namespace move_base {
 
   void MoveBase::executeCb(const move_base_msgs::MoveBaseGoalConstPtr& move_base_goal)
   {
+    ROS_INFO("call executeCb");
     if(!isQuaternionValid(move_base_goal->target_pose.pose.orientation)){
       amr_status_msg_.data = "ABORTED";
       amr_status_pub_.publish(amr_status_msg_);
@@ -750,7 +752,9 @@ namespace move_base {
     planner_goal_ = goal;
     runPlanner_ = true;
     planner_cond_.notify_one();
+    geometry_msgs::PoseStamped temp_goal = planner_goal_;
     lock.unlock();
+    ROS_INFO("[call executeCb] temp_goal(planner_goal_) = (%.3f, %.3f)", temp_goal.pose.position.x, temp_goal.pose.position.y);
 
     current_goal_pub_.publish(goal);
     std::vector<geometry_msgs::PoseStamped> global_plan;
@@ -831,7 +835,9 @@ namespace move_base {
           planner_goal_ = goal;
           runPlanner_ = true;
           planner_cond_.notify_one();
+          geometry_msgs::PoseStamped temp_goal = planner_goal_;
           lock.unlock();
+          ROS_INFO("0 temp_goal(planner_goal_) = (%.3f, %.3f)", temp_goal.pose.position.x, temp_goal.pose.position.y);
 
           //publish the goal point to the visualizer
           ROS_DEBUG_NAMED("move_base","move_base has received a goal of x: %.2f, y: %.2f", goal.pose.position.x, goal.pose.position.y);
@@ -872,7 +878,9 @@ namespace move_base {
         planner_goal_ = goal;
         runPlanner_ = true;
         planner_cond_.notify_one();
+        geometry_msgs::PoseStamped temp_goal = planner_goal_;
         lock.unlock();
+        ROS_INFO("1 temp_goal(planner_goal_) = (%.3f, %.3f)", temp_goal.pose.position.x, temp_goal.pose.position.y);
 
         //publish the goal point to the visualizer
         ROS_DEBUG_NAMED("move_base","The global frame for move_base has changed, new frame: %s, new goal position x: %.2f, y: %.2f", goal.header.frame_id.c_str(), goal.pose.position.x, goal.pose.position.y);
@@ -960,6 +968,7 @@ namespace move_base {
     }
 
     //if we have a new plan then grab it and give it to the controller
+    boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
     if(new_global_plan_){
       //make sure to set the new plan flag to false
       new_global_plan_ = false;
@@ -967,8 +976,8 @@ namespace move_base {
       ROS_DEBUG_NAMED("move_base","Got a new plan...swap pointers");
 
       //do a pointer swap under mutex
-      boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
       std::vector<geometry_msgs::PoseStamped>* temp_plan = controller_plan_;
+      // boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
       controller_plan_ = latest_plan_;
       latest_plan_ = temp_plan;
       lock.unlock();
@@ -997,6 +1006,10 @@ namespace move_base {
         resetRecovery();
       }
     }
+    else
+    {
+      lock.unlock();
+    }
 
     //the move_base state machine, handles the control logic for navigation
     switch(state_){
@@ -1007,6 +1020,7 @@ namespace move_base {
           runPlanner_ = true;
           planner_cond_.notify_one();
         }
+        ROS_INFO("[case PLANNING] runPlanner_ = true");
         amr_status_msg_.data = "PLANNING";
         amr_status_pub_.publish(amr_status_msg_);
         ROS_DEBUG_NAMED("move_base","Waiting for plan, in the planning state.");

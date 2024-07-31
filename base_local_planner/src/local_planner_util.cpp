@@ -97,15 +97,17 @@ bool LocalPlannerUtil::setPlan(const std::vector<geometry_msgs::PoseStamped>& or
   ROS_INFO("setPlan begin");
   if (global_plan_.size() > 0)
   {
-    ROS_INFO("global_plan_ (x, y)      : (%.3f, %.3f)",
-             global_plan_[0].pose.position.x,
-             global_plan_[0].pose.position.y);
+    ROS_INFO("global_plan_[%d] (x, y)      : (%.3f, %.3f)",
+             global_plan_.size() - 1,
+             global_plan_.back().pose.position.x,
+             global_plan_.back().pose.position.y);
   }
   if (orig_global_plan.size() > 0)
   {
-    ROS_INFO("orig_global_plan (x, y) : (%.3f, %.3f)",
-             orig_global_plan[0].pose.position.x,
-             orig_global_plan[0].pose.position.y);
+    ROS_INFO("orig_global_plan[%d] (x, y) : (%.3f, %.3f)",
+             orig_global_plan.size() - 1,
+             orig_global_plan.back().pose.position.x,
+             orig_global_plan.back().pose.position.y);
   }
 
   //reset the global plan
