@@ -272,8 +272,8 @@ namespace dwa_local_planner {
 
       if (use_clear_plan_) planner_util_.clearPlan();
       ROS_INFO("goal_pose x %f, goal_pose y %f", goal_pose.pose.position.x, goal_pose.pose.position.y);
-      ROS_INFO("current_pose x %f, current_pose y %f", current_pose_.pose.position.x, current_pose_.pose.position.y);
-      ROS_INFO("xy_goal_tolerance : %f, d : %f", xy_goal_tolerance, d);
+      ROS_DEBUG("current_pose x %f, current_pose y %f", current_pose_.pose.position.x, current_pose_.pose.position.y);
+      ROS_DEBUG("xy_goal_tolerance : %f, d : %f", xy_goal_tolerance, d);
       ROS_INFO("Goal reached");
       return true;
     } else {
