@@ -106,6 +106,7 @@ namespace move_base {
       bool executeCycle(geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& global_plan);
 
     private:
+      double new_global_plan_delay_sec_ = 0.0;
       int detect_motion_stuck_count_ = 0;
       double pre_body_x_ = 0;
       double pre_body_y_ = 0;

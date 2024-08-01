@@ -101,6 +101,8 @@ namespace move_base {
     private_nh.param("detect_motion_abs_vx", detect_motion_abs_vx_, 0.05);
     private_nh.param("detect_motion_abs_wz", detect_motion_abs_wz_, 5 * M_PI / 180);
 
+    private_nh.param("new_global_plan_delay_sec", new_global_plan_delay_sec_, 0.0);
+
     //set up plan triple buffer
     planner_plan_ = new std::vector<geometry_msgs::PoseStamped>();
     latest_plan_ = new std::vector<geometry_msgs::PoseStamped>();
@@ -758,6 +760,8 @@ namespace move_base {
 
     current_goal_pub_.publish(goal);
     std::vector<geometry_msgs::PoseStamped> global_plan;
+
+    ros::Duration(new_global_plan_delay_sec_).sleep();
 
     ros::Rate r(controller_frequency_);
     if(shutdown_costmaps_){
