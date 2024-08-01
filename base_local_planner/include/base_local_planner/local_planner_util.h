@@ -94,6 +94,8 @@ public:
 
   bool setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan);
 
+  void clearPlan() { global_plan_.clear(); }
+
   bool getLocalPlan(const geometry_msgs::PoseStamped& global_pose, std::vector<geometry_msgs::PoseStamped>& transformed_plan);
 
   costmap_2d::Costmap2D* getCostmap();
