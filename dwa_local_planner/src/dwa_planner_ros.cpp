@@ -161,6 +161,8 @@ namespace dwa_local_planner {
       dynamic_reconfigure::Server<DWAPlannerConfig>::CallbackType cb = boost::bind(&DWAPlannerROS::reconfigureCB, this, _1, _2);
       dsrv_->setCallback(cb);
 
+      private_nh.param("use_clear_plan", this->use_clear_plan_, true);
+
       private_nh.param("rotate_target_distance", this->rotate_target_distance_, 1.0);
       private_nh.param("rotate_start_threshold_vel", this->rotate_start_threshold_vel_, 0.1);
       private_nh.param("rotate_start_threshold_angular_vel", this->rotate_start_threshold_angular_vel_, 0.05);
@@ -268,7 +270,7 @@ namespace dwa_local_planner {
         return false;
       }
 
-      planner_util_.clearPlan();
+      if (use_clear_plan_) planner_util_.clearPlan();
       ROS_INFO("goal_pose x %f, goal_pose y %f", goal_pose.pose.position.x, goal_pose.pose.position.y);
       ROS_INFO("current_pose x %f, current_pose y %f", current_pose_.pose.position.x, current_pose_.pose.position.y);
       ROS_INFO("xy_goal_tolerance : %f, d : %f", xy_goal_tolerance, d);
