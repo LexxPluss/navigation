@@ -1134,8 +1134,8 @@ namespace move_base {
 
           if (recovery_flag_ || frequent_recovery_motion_)
           {
-            ROS_INFO("Executing behavior %u of %zu", recovery_index_, recovery_behaviors_->size());
-            (*recovery_behaviors_)[recovery_index_]->runBehavior();
+            ROS_INFO("Executing behavior %u of %zu", recovery_index_, this->current_recovery_behaviors_->size());
+            (*this->current_recovery_behaviors_)[recovery_index_]->runBehavior();
             recovery_index_++;
           }
 
