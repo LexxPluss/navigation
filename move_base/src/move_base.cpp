@@ -102,7 +102,6 @@ namespace move_base {
     private_nh.param("detect_motion_abs_wz", detect_motion_abs_wz_, 5 * M_PI / 180);
 
     private_nh.param("new_global_plan_delay_sec", new_global_plan_delay_sec_, 0.0);
-    // goal pose と 自車両座標系の距離が このパラメータで指定した距離よりも近い場合、planner が notify_oneを実行しない
     private_nh.param("planner_update_minimum_distance", planner_update_minimum_distance_, 1.0);
 
     //set up plan triple buffer
@@ -645,19 +644,8 @@ namespace move_base {
 
   void MoveBase::wakePlanner(const ros::TimerEvent& event)
   {
-    // get robot pose
-    geometry_msgs::PoseStamped global_pose;
-    if(!getRobotPose(global_pose, planner_costmap_ros_)){
-      ROS_ERROR("Failed to get robot pose, aborting wake planner");
-      return;
-    }
-
-    // calculate distance to current goal
-    double goal_dist = distance(global_pose, planner_goal_);
-
-    if (planner_update_minimum_distance_ < goal_dist)
+    if (planner_update_minimum_distance_ < getCurrentGoalDistance())
     {
-      // Do not notify the planner if the goal is within the specified close distance
       planner_cond_.notify_one();
     }
   }
@@ -1031,6 +1019,7 @@ namespace move_base {
     switch(state_){
       //if we are in a planning state, then we'll attempt to make a plan
       case PLANNING:
+        if (planner_update_minimum_distance_ < getCurrentGoalDistance())
         {
           boost::recursive_mutex::scoped_lock lock(planner_mutex_);
           runPlanner_ = true;
@@ -1550,5 +1539,15 @@ namespace move_base {
     }
 
     return false;
+  }
+
+  double MoveBase::getCurrentGoalDistance()
+  {
+    // get robot pose
+    geometry_msgs::PoseStamped global_pose;
+    getRobotPose(global_pose, planner_costmap_ros_);
+
+    // calculate distance to current goal
+    return distance(global_pose, planner_goal_);
   }
 };

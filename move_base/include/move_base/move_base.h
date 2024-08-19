@@ -204,6 +204,8 @@ namespace move_base {
 
       void resetRecovery();
 
+      double getCurrentGoalDistance();
+
       // feature switch flag
       bool use_carrying_manager_;
 
