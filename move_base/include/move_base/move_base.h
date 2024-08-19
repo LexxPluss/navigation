@@ -107,6 +107,7 @@ namespace move_base {
 
     private:
       double new_global_plan_delay_sec_ = 0.0;
+      double planner_update_minimum_distance_ = 0.0;
       int detect_motion_stuck_count_ = 0;
       double pre_body_x_ = 0;
       double pre_body_y_ = 0;
