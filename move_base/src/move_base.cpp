@@ -1045,12 +1045,12 @@ namespace move_base {
           runPlanner_ = false;
           lock.unlock();
 
-          if (this->is_planning_)
+          while (this->is_planning_)
           {
+            ROS_INFO_STREAM("executeCycle waits for the planner to finish.");
             amr_status_msg_.data = "CONTROLLING";
             amr_status_pub_.publish(amr_status_msg_);
-            ROS_INFO_STREAM("executeCycle waits for the planner to finish.");
-            return false;
+            ros::Duration(1.0 / controller_frequency_).sleep();
           }
 
           amr_status_msg_.data = "SUCCEEDED";
@@ -1059,9 +1059,6 @@ namespace move_base {
           as_->setSucceeded(move_base_msgs::MoveBaseResult(), "Goal reached.");
           return true;
         }
-
-        amr_status_msg_.data = "CONTROLLING";
-        amr_status_pub_.publish(amr_status_msg_);
 
         //check for an oscillation condition
         if(detectMotionStuck())
