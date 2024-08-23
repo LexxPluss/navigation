@@ -1060,6 +1060,9 @@ namespace move_base {
           return true;
         }
 
+        amr_status_msg_.data = "CONTROLLING";
+        amr_status_pub_.publish(amr_status_msg_);
+
         //check for an oscillation condition
         if(detectMotionStuck())
         {
