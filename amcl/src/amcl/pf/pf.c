@@ -300,7 +300,7 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
         pf->w_slow = w_avg;
       else
         pf->w_slow += pf->alpha_slow * (w_avg - pf->w_slow);
-      if(pf->w_fast == 0.0)
+      if (pf->w_fast == 0.0)
         pf->w_fast = w_avg;
       else
         pf->w_fast += pf->alpha_fast * (w_avg - pf->w_fast);
