@@ -286,7 +286,7 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
     if (total > 0.0)
     {
       // Normalize weights
-      double w_avg=0.0;
+      double w_avg = 0.0;
       for (i = 0; i < set->sample_count; i++)
       {
         sample = set->samples + i;
@@ -305,7 +305,7 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
       else
         pf->w_fast += pf->alpha_fast * (w_avg - pf->w_fast);
       // printf("w_avg: %e slow: %e fast: %e\n", 
-             // w_avg, pf->w_slow, pf->w_fast);
+              // w_avg, pf->w_slow, pf->w_fast);
     }
     else
     {
@@ -354,8 +354,8 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
         pf->w_fast = w_avg;
       else
         pf->w_fast += pf->alpha_fast * (w_avg - pf->w_fast);
-      //printf("w_avg: %e slow: %e fast: %e\n", 
-             //w_avg, pf->w_slow, pf->w_fast);
+      // printf("w_avg: %e slow: %e fast: %e\n", 
+              // w_avg, pf->w_slow, pf->w_fast);
     }
     else
     {
@@ -373,7 +373,7 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
     }
   }
 
-  set->n_effective = 1.0/set->n_effective;
+  set->n_effective = 1.0 / set->n_effective;
   return;
 }
 
