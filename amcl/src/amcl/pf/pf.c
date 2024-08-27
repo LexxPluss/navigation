@@ -336,7 +336,7 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
       if (set->unlikely_count < 0) set->unlikely_count = 0;
 
       // Normalize weights
-      double w_avg=0.0;
+      double w_avg = 0.0;
       for (i = 0; i < set->sample_count; i++)
       {
         sample = set->samples + i;
