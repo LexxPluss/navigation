@@ -296,7 +296,7 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
       }
       // Update running averages of likelihood of samples (Prob Rob p258)
       w_avg /= set->sample_count;
-      if(pf->w_slow == 0.0)
+      if (pf->w_slow == 0.0)
         pf->w_slow = w_avg;
       else
         pf->w_slow += pf->alpha_slow * (w_avg - pf->w_slow);
