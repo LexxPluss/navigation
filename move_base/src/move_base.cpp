@@ -57,7 +57,9 @@ namespace move_base {
     blp_loader_("nav_core", "nav_core::BaseLocalPlanner"),
     recovery_loader_("nav_core", "nav_core::RecoveryBehavior"),
     planner_plan_(NULL), latest_plan_(NULL), controller_plan_(NULL),
-    runPlanner_(false), setup_(false), p_freq_change_(false), c_freq_change_(false), new_global_plan_(false) {
+    runPlanner_(false), setup_(false), p_freq_change_(false), c_freq_change_(false), new_global_plan_(false),
+    is_planner_waiting_(true)
+  {
 
     as_ = new MoveBaseActionServer(ros::NodeHandle(), "move_base", boost::bind(&MoveBase::executeCb, this, _1), false);
 
@@ -660,6 +662,8 @@ namespace move_base {
     bool wait_for_wake = false;
     boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
     while(n.ok()){
+      this->is_planner_waiting_ = ture;
+
       //check if we should run the planner (the mutex is locked)
       while(wait_for_wake || !runPlanner_){
         //if we should not be running the planner then suspend this thread
@@ -667,6 +671,7 @@ namespace move_base {
         planner_cond_.wait(lock);
         wait_for_wake = false;
       }
+      this->is_planner_waiting_ = false;
       ros::Time start_time = ros::Time::now();
 
       //time to plan! get a copy of the goal and unlock the mutex
@@ -1039,6 +1044,14 @@ namespace move_base {
           boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
           runPlanner_ = false;
           lock.unlock();
+
+          while (!this->is_planner_waiting_)
+          {
+            ROS_INFO_STREAM("executeCycle is waiting for the planner to finish.");
+            amr_status_msg_.data = "CONTROLLING";
+            amr_status_pub_.publish(amr_status_msg_);
+            ros::Duration(1.0 / controller_frequency_).sleep();
+          }
 
           amr_status_msg_.data = "SUCCEEDED";
           amr_status_pub_.publish(amr_status_msg_);
