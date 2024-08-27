@@ -305,7 +305,7 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
       else
         pf->w_fast += pf->alpha_fast * (w_avg - pf->w_fast);
       // printf("w_avg: %e slow: %e fast: %e\n", 
-             //w_avg, pf->w_slow, pf->w_fast);
+             // w_avg, pf->w_slow, pf->w_fast);
     }
     else
     {
