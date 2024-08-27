@@ -205,7 +205,7 @@ void pf_init_converged(pf_t *pf);
 void pf_copy_set(pf_sample_set_t* set_a, pf_sample_set_t* set_b);
 
 
-//expansion reset
+// expansion reset
 #include <stdbool.h>
 extern bool use_expansion_reset_;
 extern double expansion_reset_x_sigma_, expansion_reset_y_sigma_, expansion_reset_yaw_sigma_;
