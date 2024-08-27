@@ -328,10 +328,10 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
       expansion_reset_y_sigma_,
       expansion_reset_yaw_sigma_
     };
-    if (expansion_reset_threshold_ < total || set->unlikely_count <= expansion_reset_trigger_count_)
+    if (expansion_reset_likelihood_th_ < total || set->unlikely_count <= expansion_reset_trigger_count_)
     {
       // update unlikely_count
-      if (expansion_reset_threshold_ > total) set->unlikely_count++;
+      if (expansion_reset_likelihood_th_ > total) set->unlikely_count++;
       else set->unlikely_count--;
       if (set->unlikely_count < 0) set->unlikely_count = 0;
 
