@@ -1047,7 +1047,7 @@ namespace move_base {
 
           while (this->is_planning_)
           {
-            ROS_INFO_STREAM("executeCycle waits for the planner to finish.");
+            ROS_INFO_STREAM("executeCycle is waiting for the planner to finish.");
             amr_status_msg_.data = "CONTROLLING";
             amr_status_pub_.publish(amr_status_msg_);
             ros::Duration(1.0 / controller_frequency_).sleep();
