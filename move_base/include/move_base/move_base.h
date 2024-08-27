@@ -215,7 +215,7 @@ namespace move_base {
 
       boost::shared_ptr<nav_core::BaseGlobalPlanner> planner_;
       std::string robot_base_frame_, global_frame_;
-      bool is_planning_;
+      bool is_planner_waiting_;
 
       typedef boost::shared_ptr<nav_core::RecoveryBehavior> BehPtr;
       boost::shared_ptr<std::vector<BehPtr>> current_recovery_behaviors_;
