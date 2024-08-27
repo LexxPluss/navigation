@@ -82,6 +82,12 @@
 
 using namespace amcl;
 
+// parameters of expansion reset in pf.c
+bool use_expansion_reset_;
+double expansion_reset_x_sigma_, expansion_reset_y_sigma_, expansion_reset_yaw_sigma_;
+double expansion_reset_threshold_;
+int expansion_reset_trigger_count_;
+
 // Pose hypothesis
 typedef struct
 {
@@ -489,6 +495,14 @@ AmclNode::AmclNode() :
   private_nh_.param("odom_amcl_diff_count_thre", odom_amcl_diff_count_thre_, 5);
   private_nh_.param("paused_odom_z_thre", paused_odom_z_thre_, M_PI/2.0);
   private_nh_.param("paused_odom_x_thre", paused_odom_x_thre_, 1.0);
+
+  // expansion reset
+  private_nh_.param("use_expansion_reset", use_expansion_reset_, false);
+  private_nh_.param("expansion_reset_x_sigma", expansion_reset_x_sigma_, 0.3);
+  private_nh_.param("expansion_reset_y_sigma", expansion_reset_y_sigma_, 0.3);
+  private_nh_.param("expansion_reset_yaw_sigma", expansion_reset_yaw_sigma_, 0.1);
+  private_nh_.param("expansion_reset_threshold", expansion_reset_threshold_, 8.5);
+  private_nh_.param("expansion_reset_trigger_count", expansion_reset_trigger_count_, 5);
 
   // For diagnostics
   private_nh_.param("std_warn_level_x", std_warn_level_x_, 0.2);
