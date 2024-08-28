@@ -166,6 +166,8 @@ void pf_update_action(pf_t *pf, pf_action_model_fn_t action_fn, void *action_dat
 // Update the filter with some new sensor observation
 void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_data);
 
+void pf_update_weight(double total, pf_t *pf, pf_sample_set_t *set);
+
 // Resample the distribution
 void pf_update_resample(pf_t *pf);
 
