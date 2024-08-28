@@ -135,6 +135,7 @@ namespace dwa_local_planner {
 
       // feature switch flag
       bool use_carrying_manager_;
+      bool use_clear_plan_;
 
       /**
        * @brief Callback to update the local planner's parameters based on dynamic reconfigure

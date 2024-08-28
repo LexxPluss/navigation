@@ -144,7 +144,7 @@ namespace dwa_local_planner {
       {
         odom_helper_.setOdomTopic( odom_topic_ );
       }
-      
+
       initialized_ = true;
 
       // Warn about deprecated parameters -- remove this block in N-turtle
@@ -161,10 +161,12 @@ namespace dwa_local_planner {
       dynamic_reconfigure::Server<DWAPlannerConfig>::CallbackType cb = boost::bind(&DWAPlannerROS::reconfigureCB, this, _1, _2);
       dsrv_->setCallback(cb);
 
+      private_nh.param("use_clear_plan", this->use_clear_plan_, true);
+
       private_nh.param("rotate_target_distance", this->rotate_target_distance_, 1.0);
       private_nh.param("rotate_start_threshold_vel", this->rotate_start_threshold_vel_, 0.1);
       private_nh.param("rotate_start_threshold_angular_vel", this->rotate_start_threshold_angular_vel_, 0.05);
-      
+
       private_nh.param("use_rotate_first_actuator_connect", this->use_rotate_first_actuator_connect_, false);
       private_nh.param("use_rotate_first_actuator_disconnect", this->use_rotate_first_actuator_disconnect_, true);
       private_nh.param("kpre", this->kpre_, 0.0);
@@ -187,7 +189,7 @@ namespace dwa_local_planner {
       ROS_WARN("This planner has already been initialized, doing nothing.");
     }
   }
-  
+
   bool DWAPlannerROS::setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan) {
     if (! isInitialized()) {
       ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
@@ -268,6 +270,10 @@ namespace dwa_local_planner {
         return false;
       }
 
+      if (use_clear_plan_) planner_util_.clearPlan();
+      ROS_INFO("goal_pose x %f, goal_pose y %f", goal_pose.pose.position.x, goal_pose.pose.position.y);
+      ROS_DEBUG("current_pose x %f, current_pose y %f", current_pose_.pose.position.x, current_pose_.pose.position.y);
+      ROS_DEBUG("xy_goal_tolerance : %f, d : %f", xy_goal_tolerance, d);
       ROS_INFO("Goal reached");
       return true;
     } else {
@@ -318,7 +324,7 @@ namespace dwa_local_planner {
     //compute what trajectory to drive along
     geometry_msgs::PoseStamped drive_cmds;
     drive_cmds.header.frame_id = costmap_ros_->getBaseFrameID();
-    
+
     // call with updated footprint
     base_local_planner::Trajectory path = dp_->findBestPath(global_pose, robot_vel, drive_cmds);
     //ROS_ERROR("Best: %.2f, %.2f, %.2f, %.2f", path.xv_, path.yv_, path.thetav_, path.cost_);
@@ -350,7 +356,7 @@ namespace dwa_local_planner {
       return false;
     }
 
-    ROS_DEBUG_NAMED("dwa_local_planner", "A valid velocity command of (%.2f, %.2f, %.2f) was found for this cycle.", 
+    ROS_DEBUG_NAMED("dwa_local_planner", "A valid velocity command of (%.2f, %.2f, %.2f) was found for this cycle.",
                     cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z);
 
     // Fill out the local plan
@@ -448,7 +454,7 @@ namespace dwa_local_planner {
       vel_cmd_mode_marker_msg_.color.b = 0.0;
       vel_cmd_mode_pub_.publish(vel_cmd_mode_msg_);
       vel_cmd_marker_pub_.publish(vel_cmd_mode_marker_msg_);
-      
+
       this->is_force_update_ = true;
       //publish an empty plan because we've reached our goal position
       std::vector<geometry_msgs::PoseStamped> local_plan;
@@ -533,7 +539,7 @@ namespace dwa_local_planner {
             double tmp_y = iter->pose.position.y;
             traveled_distance += std::sqrt(std::pow(prev_x - tmp_x, 2) + std::pow(prev_y - tmp_y, 2));
           }
-          
+
           if (this->rotate_target_distance_ < traveled_distance)
           {
             turn_target_pose = *iter;
@@ -688,7 +694,7 @@ namespace dwa_local_planner {
     this->is_weight_applied_ = msg->weight_applied;
     this->is_cargo_enabled_ = msg->cart_rotation_enabled;
 
-    if (msg->carrying_mode == lexxauto_msgs::CarryingInformation::CARRYING_MODE_TUG)
+    if (msg->carrying_mode == lexxauto_msgs::CarryingInformation::CARRYING_MODE_TUG_H)
     {
       if (this->is_weight_applied_ != is_weight_applied_prev_)
       {

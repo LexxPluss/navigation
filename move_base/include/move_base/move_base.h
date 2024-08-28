@@ -106,6 +106,7 @@ namespace move_base {
       bool executeCycle(geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& global_plan);
 
     private:
+      double new_global_plan_delay_sec_ = 0.0;
       int detect_motion_stuck_count_ = 0;
       double pre_body_x_ = 0;
       double pre_body_y_ = 0;
@@ -214,6 +215,7 @@ namespace move_base {
 
       boost::shared_ptr<nav_core::BaseGlobalPlanner> planner_;
       std::string robot_base_frame_, global_frame_;
+      bool is_planner_waiting_;
 
       typedef boost::shared_ptr<nav_core::RecoveryBehavior> BehPtr;
       boost::shared_ptr<std::vector<BehPtr>> current_recovery_behaviors_;

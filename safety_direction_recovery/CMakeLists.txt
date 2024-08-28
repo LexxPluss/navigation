@@ -36,6 +36,8 @@ add_library(safety_direction_recovery src/safety_direction_recovery.cpp)
 add_dependencies(safety_direction_recovery ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(safety_direction_recovery ${catkin_LIBRARIES})
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
+
 install(TARGETS safety_direction_recovery
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

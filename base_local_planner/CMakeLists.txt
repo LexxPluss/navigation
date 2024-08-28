@@ -126,6 +126,8 @@ add_executable(point_grid src/point_grid.cpp)
 add_dependencies(point_grid ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(point_grid ${catkin_LIBRARIES})
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
+
 install(TARGETS
             base_local_planner
             trajectory_planner_ros

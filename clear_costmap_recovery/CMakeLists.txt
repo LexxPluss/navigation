@@ -51,6 +51,7 @@ if(CATKIN_ENABLE_TESTING)
   target_link_libraries(clear_tester clear_costmap_recovery ${GTEST_LIBRARIES})
 endif()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
 
 install(TARGETS clear_costmap_recovery
        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
