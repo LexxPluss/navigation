@@ -662,7 +662,7 @@ namespace move_base {
     bool wait_for_wake = false;
     boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
     while(n.ok()){
-      this->is_planner_waiting_ = ture;
+      this->is_planner_waiting_ = true;
 
       //check if we should run the planner (the mutex is locked)
       while(wait_for_wake || !runPlanner_){
