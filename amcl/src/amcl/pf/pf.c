@@ -345,7 +345,7 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
       {
         sample = set->samples + i;
         sample->weight = 1.0 / set->sample_count;
-        for (int j = 0; j < 3; j++) sample->pose.v[j] += pf_ran_gaussian(sigma[j]);
+        for (int j = 0; j < sigma.size(); j++) sample->pose.v[j] += pf_ran_gaussian(sigma[j]);
       }
       set->unlikely_count = 0;
     }
