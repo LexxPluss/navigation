@@ -211,7 +211,7 @@ void pf_copy_set(pf_sample_set_t* set_a, pf_sample_set_t* set_b);
 // expansion reset
 extern bool use_expansion_reset_;
 extern double expansion_reset_x_sigma_, expansion_reset_y_sigma_, expansion_reset_yaw_sigma_;
-extern double expansion_reset_likelihood_th_;
+extern double expansion_reset_likelihood_threshold_;
 extern int expansion_reset_trigger_count_;
 
 #ifdef __cplusplus
