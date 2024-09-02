@@ -262,6 +262,32 @@ void pf_update_action(pf_t *pf, pf_action_model_fn_t action_fn, void *action_dat
   return;
 }
 
+void pf_update_weight(double total, pf_t *pf, pf_sample_set_t *set)
+{
+  pf_sample_t *sample;
+
+  // Normalize weights
+  double w_avg = 0.0;
+  for (int i = 0; i < set->sample_count; i++)
+  {
+    sample = set->samples + i;
+    w_avg += sample->weight;
+    sample->weight /= total;
+    set->n_effective += sample->weight*sample->weight;
+  }
+  // Update running averages of likelihood of samples (Prob Rob p258)
+  w_avg /= set->sample_count;
+  if (pf->w_slow == 0.0)
+    pf->w_slow = w_avg;
+  else
+    pf->w_slow += pf->alpha_slow * (w_avg - pf->w_slow);
+  if (pf->w_fast == 0.0)
+    pf->w_fast = w_avg;
+  else
+    pf->w_fast += pf->alpha_fast * (w_avg - pf->w_fast);
+  // printf("w_avg: %e slow: %e fast: %e\n", 
+          // w_avg, pf->w_slow, pf->w_fast);
+}
 
 #include <float.h>
 // Update the filter with some new sensor observation
@@ -278,42 +304,54 @@ void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_dat
   total = (*sensor_fn) (sensor_data, set);
 
   set->n_effective = 0;
-  
-  if (total > 0.0)
+
+  // usually not use expansion reset
+
+  if (!use_expansion_reset_)
   {
-    // Normalize weights
-    double w_avg=0.0;
-    for (i = 0; i < set->sample_count; i++)
+    if (total > 0.0) pf_update_weight(total, pf, set);
+    else
     {
-      sample = set->samples + i;
-      w_avg += sample->weight;
-      sample->weight /= total;
-      set->n_effective += sample->weight*sample->weight;
+      // Handle zero total
+      for (i = 0; i < set->sample_count; i++)
+      {
+        sample = set->samples + i;
+        sample->weight = 1.0 / set->sample_count;
+      }
     }
-    // Update running averages of likelihood of samples (Prob Rob p258)
-    w_avg /= set->sample_count;
-    if(pf->w_slow == 0.0)
-      pf->w_slow = w_avg;
-    else
-      pf->w_slow += pf->alpha_slow * (w_avg - pf->w_slow);
-    if(pf->w_fast == 0.0)
-      pf->w_fast = w_avg;
-    else
-      pf->w_fast += pf->alpha_fast * (w_avg - pf->w_fast);
-    //printf("w_avg: %e slow: %e fast: %e\n", 
-           //w_avg, pf->w_slow, pf->w_fast);
   }
   else
   {
-    // Handle zero total
-    for (i = 0; i < set->sample_count; i++)
+    // [https://ieeexplore.ieee.org/document/1389781]
+    // syo-kai probabilistic robotics P173 {
+    const double sigma[3] =
     {
-      sample = set->samples + i;
-      sample->weight = 1.0 / set->sample_count;
+      expansion_reset_x_sigma_,
+      expansion_reset_y_sigma_,
+      expansion_reset_yaw_sigma_
+    };
+    if (expansion_reset_likelihood_threshold_ < total || set->unlikely_count <= expansion_reset_trigger_count_)
+    {
+      // update unlikely_count
+      if (expansion_reset_likelihood_threshold_ > total) set->unlikely_count++;
+      else set->unlikely_count--;
+      if (set->unlikely_count < 0) set->unlikely_count = 0;
+      pf_update_weight(total, pf, set);
+    }
+    else
+    {
+      // Handle expansion reset
+      for (i = 0; i < set->sample_count; i++)
+      {
+        sample = set->samples + i;
+        sample->weight = 1.0 / set->sample_count;
+        for (int j = 0; j < sizeof(sigma) / sizeof(sigma[0]); j++) sample->pose.v[j] += pf_ran_gaussian(sigma[j]);
+      }
+      set->unlikely_count = 0;
     }
   }
 
-  set->n_effective = 1.0/set->n_effective;
+  set->n_effective = 1.0 / set->n_effective;
   return;
 }
 

@@ -30,6 +30,7 @@
 
 #include "pf_vector.h"
 #include "pf_kdtree.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -92,6 +93,8 @@ typedef struct _pf_sample_set_t
   // The samples
   int sample_count;
   pf_sample_t *samples;
+
+  int unlikely_count;
 
   // A kdtree encoding the histogram
   pf_kdtree_t *kdtree;
@@ -163,6 +166,8 @@ void pf_update_action(pf_t *pf, pf_action_model_fn_t action_fn, void *action_dat
 // Update the filter with some new sensor observation
 void pf_update_sensor(pf_t *pf, pf_sensor_model_fn_t sensor_fn, void *sensor_data);
 
+void pf_update_weight(double total, pf_t *pf, pf_sample_set_t *set);
+
 // Resample the distribution
 void pf_update_resample(pf_t *pf);
 
@@ -201,6 +206,13 @@ int pf_update_converged(pf_t *pf);
 void pf_init_converged(pf_t *pf);
 
 void pf_copy_set(pf_sample_set_t* set_a, pf_sample_set_t* set_b);
+
+
+// expansion reset
+extern bool use_expansion_reset_;
+extern double expansion_reset_x_sigma_, expansion_reset_y_sigma_, expansion_reset_yaw_sigma_;
+extern double expansion_reset_likelihood_threshold_;
+extern int expansion_reset_trigger_count_;
 
 #ifdef __cplusplus
 }
