@@ -694,7 +694,8 @@ namespace dwa_local_planner {
     this->is_weight_applied_ = msg->weight_applied;
     this->is_cargo_enabled_ = msg->cart_rotation_enabled;
 
-    if (msg->carrying_mode == lexxauto_msgs::CarryingInformation::CARRYING_MODE_TUG_H)
+    if (msg->carrying_mode == lexxauto_msgs::CarryingInformation::CARRYING_MODE_TUG_H ||
+        msg->carrying_mode == lexxauto_msgs::CarryingInformation::CARRYING_MODE_TUG_L)
     {
       if (this->is_weight_applied_ != is_weight_applied_prev_)
       {
