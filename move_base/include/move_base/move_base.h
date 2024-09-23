@@ -106,6 +106,8 @@ namespace move_base {
       bool executeCycle(geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& global_plan);
 
     private:
+      typedef boost::shared_ptr<nav_core::RecoveryBehavior> BehPtr;
+
       double new_global_plan_delay_sec_ = 0.0;
       int detect_motion_stuck_count_ = 0;
       double pre_body_x_ = 0;
@@ -146,6 +148,13 @@ namespace move_base {
        * @return  True if planning succeeds, false otherwise
        */
       bool makePlan(const geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& plan);
+
+      void addRecoveryBehavior(std::string name, boost::shared_ptr<std::vector<BehPtr>> behaviors);
+
+      bool createRecoveryBehaviors(
+        XmlRpc::XmlRpcValue behavior_list,
+        boost::shared_ptr<std::vector<BehPtr>> behaviors,
+        int start_idx);
 
       /**
        * @brief  Load the recovery behaviors for the navigation stack from the parameter server
@@ -217,7 +226,8 @@ namespace move_base {
       std::string robot_base_frame_, global_frame_;
       bool is_planner_waiting_;
 
-      typedef boost::shared_ptr<nav_core::RecoveryBehavior> BehPtr;
+      std::map<std::string, std::string> behavior_definitions_;
+      std::map<std::string, BehPtr> recovery_behaviors_cache_;
       boost::shared_ptr<std::vector<BehPtr>> current_recovery_behaviors_;
       boost::shared_ptr<std::vector<BehPtr>> recovery_behaviors_;
       boost::shared_ptr<std::vector<BehPtr>> recovery_behaviors_carrying_;
