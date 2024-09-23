@@ -154,7 +154,7 @@ namespace move_base {
       bool createRecoveryBehaviors(
         XmlRpc::XmlRpcValue behavior_list,
         boost::shared_ptr<std::vector<BehPtr>> behaviors,
-        int start_idx);
+        int& idx, int depth = 0);
 
       /**
        * @brief  Load the recovery behaviors for the navigation stack from the parameter server

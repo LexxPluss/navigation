@@ -1230,37 +1230,41 @@ namespace move_base {
   bool MoveBase::createRecoveryBehaviors(
     XmlRpc::XmlRpcValue behavior_list,
     boost::shared_ptr<std::vector<BehPtr>> behaviors,
-    int start_idx)
+    int& idx, int depth)
   {
-    for (int i = start_idx; i < behavior_list.size(); ++i)
+    for (; idx < behavior_list.size(); ++idx)
     {
-      if (behavior_list[i].getType() != XmlRpc::XmlRpcValue::TypeStruct)
+      if (behavior_list[idx].getType() != XmlRpc::XmlRpcValue::TypeStruct)
       {
         ROS_ERROR("Each recovery behavior must be a struct.");
         continue;
       }
 
-      std::string type = static_cast<std::string>(behavior_list[i]["type"]);
+      std::string type = static_cast<std::string>(behavior_list[idx]["type"]);
 
       if (type == "loop_start")
       {
         int loop_count = 0;
-        if (behavior_list[i].hasMember("params") && behavior_list[i]["params"].hasMember("loop_count"))
+        if (behavior_list[idx].hasMember("params") && behavior_list[idx]["params"].hasMember("loop_count"))
         {
-          loop_count = static_cast<int>(behavior_list[i]["params"]["loop_count"]);
+          loop_count = static_cast<int>(behavior_list[idx]["params"]["loop_count"]);
         }
 
+        int delta_idx = 0;
         for (int repeat = 0; repeat < loop_count; ++repeat)
         {
-          if (!createRecoveryBehaviors(behavior_list, behaviors, i + 1))
+          int tmp_idx = idx + 1;
+          if (!createRecoveryBehaviors(behavior_list, behaviors, tmp_idx, depth + 1))
           {
             return false;
           }
+          delta_idx = tmp_idx - idx;
         }
+        idx += delta_idx;
       }
       else if (type == "loop_end")
       {
-        if (start_idx == 0)
+        if (depth == 0)
         {
           ROS_ERROR("Mismatched 'loop_end' without corresponding 'loop_start'.");
           return false;
@@ -1278,6 +1282,12 @@ namespace move_base {
           ROS_WARN("Unknown recovery behavior type: %s", type.c_str());
         }
       }
+    }
+
+    if (0 < depth)
+    {
+      ROS_ERROR("Mismatched 'loop_start' without corresponding 'loop_end'.");
+      return false;
     }
     return true;
   }
@@ -1309,13 +1319,15 @@ namespace move_base {
       return false;
     }
 
-    if (!createRecoveryBehaviors(behavior_list, recovery_behaviors_, 0))
+    int behavior_index = 0;
+    if (!createRecoveryBehaviors(behavior_list, recovery_behaviors_, behavior_index))
     {
       recovery_behaviors_->clear();
       return false;
     }
 
-    if (!createRecoveryBehaviors(behavior_list_carrying, recovery_behaviors_carrying_, 0))
+    int behavior_index_carrying = 0;
+    if (!createRecoveryBehaviors(behavior_list_carrying, recovery_behaviors_carrying_, behavior_index_carrying))
     {
       recovery_behaviors_->clear();
       recovery_behaviors_carrying_->clear();
