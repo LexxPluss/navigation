@@ -1319,11 +1319,11 @@ namespace move_base {
       return false;
     }
 
-    int behavior_index = 0;
     int recovery_loop_count;
     node.param("recovery_loop_count", recovery_loop_count, 1);
     for (int i = 0; i < recovery_loop_count; i++)
     {
+      int behavior_index = 0;
       if (!createRecoveryBehaviors(behavior_list, recovery_behaviors_, behavior_index))
       {
         recovery_behaviors_->clear();
@@ -1331,11 +1331,11 @@ namespace move_base {
       }
     }
 
-    int behavior_index_carrying = 0;
     int recovery_loop_count_carrying;
     node.param("recovery_loop_count_carrying", recovery_loop_count_carrying, 1);
     for (int i = 0; i < recovery_loop_count_carrying; i++)
     {
+      int behavior_index_carrying = 0;
       if (!createRecoveryBehaviors(behavior_list_carrying, recovery_behaviors_carrying_, behavior_index_carrying))
       {
         recovery_behaviors_->clear();
