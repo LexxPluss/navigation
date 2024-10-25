@@ -293,7 +293,7 @@ double AMCLLaser::LikelihoodFieldModel(AMCLLaserData *data, pf_sample_set_t* set
       //      p *= pz;
       // here we have an ad-hoc weighting scheme for combining beam probs
       // works well, though...
-      p *= pz;
+      p += pz;
       p_3 += pz*pz*pz;
     }
     
