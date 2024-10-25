@@ -223,6 +223,9 @@ double AMCLLaser::LikelihoodFieldModel(AMCLLaserData *data, pf_sample_set_t* set
   pf_sample_t *sample;
   pf_vector_t pose;
   pf_vector_t hit;
+  double k, b;
+  k = 10.0;
+  b = 0.7;
 
   self = (AMCLLaser*) data->sensor;
 
@@ -293,8 +296,10 @@ double AMCLLaser::LikelihoodFieldModel(AMCLLaserData *data, pf_sample_set_t* set
       //      p *= pz;
       // here we have an ad-hoc weighting scheme for combining beam probs
       // works well, though...
-      p += pz;
       p_3 += pz*pz*pz;
+
+      // p += sigmoid(pz, k, b);
+      p += 1.0 / (1.0 + exp(-k * (pz - b)));
     }
     
     tmp_weight = sample->weight * p;
