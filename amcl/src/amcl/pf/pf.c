@@ -680,6 +680,18 @@ void pf_cluster_stats(pf_t *pf, pf_sample_set_t *set)
       }
   }
 
+  // reject clusters with too few samples
+  int min_samples = set->sample_count * 0.01;
+  if (min_samples < 0) min_samples = 0;
+  for (i = 0; i < set->cluster_count; i++)
+  {
+    cluster = set->clusters + i;
+    if (cluster->count < min_samples)
+    {
+      cluster->weight = 0;
+    }
+  }
+
   // Normalize
   for (i = 0; i < set->cluster_count; i++)
   {
