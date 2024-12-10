@@ -44,7 +44,7 @@
 #include <costmap_2d/VariableInflationPluginConfig.h>
 #include <dynamic_reconfigure/server.h>
 #include <boost/thread.hpp>
-#include <lexxauto_msgs/DiffDriveEffortControllerDebug.h>
+#include <nav_msgs/Odometry.h>
 
 namespace costmap_2d
 {
@@ -87,9 +87,9 @@ public:
         delete[] seen_;
   }
 
-  ros::Subscriber diff_drive_debug_info_sub;
-  lexxauto_msgs::DiffDriveEffortControllerDebug diff_drive_debug_info_msg;
-  void diff_drive_debug_info_callback(const lexxauto_msgs::DiffDriveEffortControllerDebug::ConstPtr& msg);
+  ros::Subscriber wheel_odom_sub_;
+  nav_msgs::Odometry wheel_odom_msg_;
+  void wheel_odom_callback(const nav_msgs::Odometry::ConstPtr& msg);
 
   virtual void onInitialize();
   virtual void updateBounds(double robot_x, double robot_y, double robot_yaw, double* min_x, double* min_y,

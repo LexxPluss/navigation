@@ -72,14 +72,14 @@ VariableInflationLayer::VariableInflationLayer()
   velocity_access_ = new boost::recursive_mutex();
 
   ros::NodeHandle nh("~/" + name_), g_nh;
-  diff_drive_debug_info_sub = g_nh.subscribe<lexxauto_msgs::DiffDriveEffortControllerDebug>
-    ("diff_drive_effort_controller/debug_info", 1, &VariableInflationLayer::diff_drive_debug_info_callback, this);
+  wheel_odom_sub_ = g_nh.subscribe<nav_msgs::Odometry>
+    ("wheel_odom", 1, &VariableInflationLayer::wheel_odom_callback, this);
 }
 
-void VariableInflationLayer::diff_drive_debug_info_callback(const lexxauto_msgs::DiffDriveEffortControllerDebug::ConstPtr& msg)
+void VariableInflationLayer::wheel_odom_callback(const nav_msgs::Odometry::ConstPtr& msg)
 {
   boost::unique_lock < boost::recursive_mutex > lock(*velocity_access_);
-  diff_drive_debug_info_msg = *msg;
+  wheel_odom_msg_ = *msg;
 }
 
 void VariableInflationLayer::onInitialize()
@@ -193,7 +193,7 @@ double VariableInflationLayer::calculate_variable_inflation_radius()
   double variable_inflation_radius = min_inflation_radius_;
   {
     boost::unique_lock < boost::recursive_mutex > lock(*velocity_access_);
-    measured_velocity = diff_drive_debug_info_msg.measured_twist_filtered.linear.x;
+    measured_velocity = wheel_odom_msg_.twist.twist.linear.x;
   }
 
   if (std::abs(measured_velocity) < min_inflation_vel_)
