@@ -24,15 +24,15 @@ TEST(costmap, testCalculateVariableInflationRadius){
   ilayer->min_inflation_vel_ = 0.1;
   ilayer->max_inflation_vel_ = 1.0;
 
-  ilayer->diff_drive_debug_info_msg.measured_twist_filtered.linear.x = 0.05;
+  ilayer->wheel_odom_msg_.twist.twist.linear.x = 0.05;
   radius = ilayer->calculate_variable_inflation_radius();
   EXPECT_EQ(radius, ilayer->min_inflation_radius_);
 
-  ilayer->diff_drive_debug_info_msg.measured_twist_filtered.linear.x = 0.5;
+  ilayer->wheel_odom_msg_.twist.twist.linear.x = 0.5;
   radius = ilayer->calculate_variable_inflation_radius();
   EXPECT_EQ(radius, 0.5);
 
-  ilayer->diff_drive_debug_info_msg.measured_twist_filtered.linear.x = 1.1;
+  ilayer->wheel_odom_msg_.twist.twist.linear.x = 1.1;
   radius = ilayer->calculate_variable_inflation_radius();
   EXPECT_EQ(radius, ilayer->max_inflation_radius_);
 }
