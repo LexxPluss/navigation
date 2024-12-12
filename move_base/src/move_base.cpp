@@ -36,6 +36,7 @@
 *         Mike Phillips (put the planner in its own thread)
 *********************************************************************/
 #include <move_base/move_base.h>
+#include <move_base_msgs/RecoveryStatus.h>
 #include <cmath>
 
 #include <boost/algorithm/string.hpp>
@@ -61,7 +62,7 @@ namespace move_base {
     is_planner_waiting_(true)
   {
 
-    as_ = new MoveBaseActionServer(ros::NodeHandle(), "move_base", boost::bind(&MoveBase::executeCb, this, _1), false);
+    as_ = new MoveBaseActionServer(ros::NodeHandle(), "move_base", [this](auto& goal){ executeCb(goal); }, false);
 
     ros::NodeHandle private_nh("~");
     ros::NodeHandle nh;
@@ -104,6 +105,9 @@ namespace move_base {
     private_nh.param("detect_motion_abs_wz", detect_motion_abs_wz_, 5 * M_PI / 180);
 
     private_nh.param("new_global_plan_delay_sec", new_global_plan_delay_sec_, 0.0);
+    // parameters of make_plan service
+    private_nh.param("make_plan_clear_costmap", make_plan_clear_costmap_, true);
+    private_nh.param("make_plan_add_unreachable_goal", make_plan_add_unreachable_goal_, true);
 
     //set up plan triple buffer
     planner_plan_ = new std::vector<geometry_msgs::PoseStamped>();
@@ -134,12 +138,13 @@ namespace move_base {
     }
 
     this->virtual_obstacle_enabled_pub_ = nh.advertise<std_msgs::Bool>("virtual_obstacle_map/enable", 1, true);
+    recovery_status_pub_= action_nh.advertise<move_base_msgs::RecoveryStatus>("recovery_status", 1);
 
     //we'll provide a mechanism for some people to send goals as PoseStamped messages over a topic
     //they won't get any useful information back about its status, but this is useful for tools
     //like nav_view and rviz
     ros::NodeHandle simple_nh("move_base_simple");
-    goal_sub_ = simple_nh.subscribe<geometry_msgs::PoseStamped>("goal", 1, boost::bind(&MoveBase::goalCB, this, _1));
+    goal_sub_ = simple_nh.subscribe<geometry_msgs::PoseStamped>("goal", 1, [this](auto& goal){ goalCB(goal); });
 
     //we'll assume the radius of the robot to be consistent with what's specified for the costmaps
     private_nh.param("local_costmap/inscribed_radius", inscribed_radius_, 0.325);
@@ -229,7 +234,7 @@ namespace move_base {
     as_->start();
 
     dsrv_ = new dynamic_reconfigure::Server<move_base::MoveBaseConfig>(ros::NodeHandle("~"));
-    dynamic_reconfigure::Server<move_base::MoveBaseConfig>::CallbackType cb = boost::bind(&MoveBase::reconfigureCB, this, _1, _2);
+    dynamic_reconfigure::Server<move_base::MoveBaseConfig>::CallbackType cb = [this](auto& config, auto level){ reconfigureCB(config, level); };
     dsrv_->setCallback(cb);
   }
 
@@ -319,6 +324,9 @@ namespace move_base {
         config.base_local_planner = last_config_.base_local_planner;
       }
     }
+
+    make_plan_clear_costmap_ = config.make_plan_clear_costmap;
+    make_plan_add_unreachable_goal_ = config.make_plan_add_unreachable_goal;
 
     last_config_ = config;
   }
@@ -462,8 +470,10 @@ namespace move_base {
         start = req.start;
     }
 
-    //update the copy of the costmap the planner uses
-    clearCostmapWindows(2 * clearing_radius_, 2 * clearing_radius_);
+    if (make_plan_clear_costmap_) {
+      //update the copy of the costmap the planner uses
+      clearCostmapWindows(2 * clearing_radius_, 2 * clearing_radius_);
+    }
 
     //first try to make a plan to the exact desired goal
     std::vector<geometry_msgs::PoseStamped> global_plan;
@@ -500,9 +510,11 @@ namespace move_base {
                 if(planner_->makePlan(start, p, global_plan)){
                   if(!global_plan.empty()){
 
-                    //adding the (unreachable) original goal to the end of the global plan, in case the local planner can get you there
-                    //(the reachable goal should have been added by the global planner)
-                    global_plan.push_back(req.goal);
+                    if (make_plan_add_unreachable_goal_) {
+                      //adding the (unreachable) original goal to the end of the global plan, in case the local planner can get you there
+                      //(the reachable goal should have been added by the global planner)
+                      global_plan.push_back(req.goal);
+                    }
 
                     found_legal = true;
                     ROS_DEBUG_NAMED("move_base", "Found a plan to point (%.2f, %.2f)", p.pose.position.x, p.pose.position.y);
@@ -767,7 +779,6 @@ namespace move_base {
     ROS_INFO("[call executeCb] temp_goal(planner_goal_) = (%.3f, %.3f)", temp_goal.pose.position.x, temp_goal.pose.position.y);
 
     current_goal_pub_.publish(goal);
-    std::vector<geometry_msgs::PoseStamped> global_plan;
 
     ros::Duration(new_global_plan_delay_sec_).sleep();
 
@@ -907,7 +918,7 @@ namespace move_base {
       ros::WallTime start = ros::WallTime::now();
 
       //the real work on pursuing a goal is done here
-      bool done = executeCycle(goal, global_plan);
+      bool done = executeCycle(goal);
 
       //if we're done, then we'll return from execute
       if(done)
@@ -942,7 +953,7 @@ namespace move_base {
     return hypot(p1.pose.position.x - p2.pose.position.x, p1.pose.position.y - p2.pose.position.y);
   }
 
-  bool MoveBase::executeCycle(geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& global_plan){
+  bool MoveBase::executeCycle(geometry_msgs::PoseStamped& goal){
     boost::recursive_mutex::scoped_lock ecl(configuration_mutex_);
     //we need to be able to publish velocity commands
     geometry_msgs::Twist cmd_vel;
@@ -1141,14 +1152,20 @@ namespace move_base {
         ROS_DEBUG_NAMED("move_base","In clearing/recovery state");
         //we'll invoke whatever recovery behavior we're currently on if they're enabled
         if(recovery_behavior_enabled_ && recovery_index_ < this->current_recovery_behaviors_->size()){
+          ROS_DEBUG_NAMED("move_base_recovery","Executing behavior %u of %zu", recovery_index_+1, recovery_behaviors_->size());
           amr_status_msg_.data = "RECOVERY";
           amr_status_pub_.publish(amr_status_msg_);
 
-          // AMRCS-241 When the state is in recovery, it is too much to force Costmap to be reset at every step.
-          // MoveBase::clearCostmaps();
-          // ROS_INFO("Clear costmaps: line: %d", __LINE__);
+          move_base_msgs::RecoveryStatus msg;
+          msg.pose_stamped = current_position;
+          msg.current_recovery_number = recovery_index_;
+          msg.total_number_of_recoveries = recovery_behaviors_->size();
+          msg.recovery_behavior_name =  recovery_behavior_names_[recovery_index_];
 
-          if (recovery_flag_ || frequent_recovery_motion_)
+          recovery_status_pub_.publish(msg);
+
+
+           if (recovery_flag_ || frequent_recovery_motion_)
           {
             ROS_INFO("Executing behavior %u of %zu", recovery_index_, this->current_recovery_behaviors_->size());
             (*this->current_recovery_behaviors_)[recovery_index_]->runBehavior();
@@ -1210,7 +1227,7 @@ namespace move_base {
     return false;
   }
 
-  void MoveBase::addRecoveryBehavior(std::string name, boost::shared_ptr<std::vector<BehPtr>> behaviors)
+  void MoveBase::addRecoveryBehavior(std::string name, boost::shared_ptr<std::vector<BehPtr>> behaviors,std::vector<std::string> &recovery_behavior_names)
   {
     std::string type = behavior_definitions_[name];
     ROS_INFO("Adding behavior '%s' of type '%s'", name.c_str(), type.c_str());
@@ -1225,11 +1242,13 @@ namespace move_base {
       recovery_behaviors_cache_[type] = behavior;
       behaviors->push_back(behavior);
     }
+    recovery_behavior_names.push_back(name);
   }
 
   bool MoveBase::createRecoveryBehaviors(
     XmlRpc::XmlRpcValue behavior_list,
     boost::shared_ptr<std::vector<BehPtr>> behaviors,
+    std::vector<std::string> &recovery_behavior_names,
     int& idx, int depth)
   {
     for (; idx < behavior_list.size(); ++idx)
@@ -1254,7 +1273,7 @@ namespace move_base {
         for (int repeat = 0; repeat < loop_count; ++repeat)
         {
           int tmp_idx = idx + 1;
-          if (!createRecoveryBehaviors(behavior_list, behaviors, tmp_idx, depth + 1))
+          if (!createRecoveryBehaviors(behavior_list, behaviors, recovery_behavior_names, tmp_idx, depth + 1))
           {
             return false;
           }
@@ -1275,7 +1294,7 @@ namespace move_base {
       {
         if (behavior_definitions_.find(type) != behavior_definitions_.end())
         {
-          addRecoveryBehavior(type, behaviors);
+          addRecoveryBehavior(type, behaviors,recovery_behavior_names);
         }
         else
         {
@@ -1324,7 +1343,7 @@ namespace move_base {
     for (int i = 0; i < recovery_loop_count; i++)
     {
       int behavior_index = 0;
-      if (!createRecoveryBehaviors(behavior_list, recovery_behaviors_, behavior_index))
+      if (!createRecoveryBehaviors(behavior_list, recovery_behaviors_, recovery_behavior_names_, behavior_index))
       {
         recovery_behaviors_->clear();
         return false;
@@ -1336,7 +1355,7 @@ namespace move_base {
     for (int i = 0; i < recovery_loop_count_carrying; i++)
     {
       int behavior_index_carrying = 0;
-      if (!createRecoveryBehaviors(behavior_list_carrying, recovery_behaviors_carrying_, behavior_index_carrying))
+      if (!createRecoveryBehaviors(behavior_list_carrying, recovery_behaviors_carrying_, recovery_behavior_names_carrying_, behavior_index_carrying))
       {
         recovery_behaviors_->clear();
         recovery_behaviors_carrying_->clear();
@@ -1361,48 +1380,48 @@ namespace move_base {
       {
         if (conservative_clearing_map_allowed_)
         {
-          addRecoveryBehavior("conservative_reset", recovery_behaviors_);
-          addRecoveryBehavior("conservative_reset", recovery_behaviors_carrying_);
+          addRecoveryBehavior("conservative_reset", recovery_behaviors_, recovery_behavior_names_);
+          addRecoveryBehavior("conservative_reset", recovery_behaviors_carrying_, recovery_behavior_names_carrying_);
         }
         if (aggressive_clearing_map_allowed_)
         {
-          addRecoveryBehavior("aggressive_reset", recovery_behaviors_);
-          addRecoveryBehavior("aggressive_reset", recovery_behaviors_carrying_);
+          addRecoveryBehavior("aggressive_reset", recovery_behaviors_, recovery_behavior_names_);
+          addRecoveryBehavior("aggressive_reset", recovery_behaviors_carrying_, recovery_behavior_names_carrying_);
         }
 
         for (int j=0; j < this->inner_loop_recovery_count_; j++)
         {
-          addRecoveryBehavior("safety_direction_recovery", recovery_behaviors_);
+          addRecoveryBehavior("safety_direction_recovery", recovery_behaviors_, recovery_behavior_names_);
           if (use_safety_direction_recovery_in_towing_)
           {
-            addRecoveryBehavior("safety_direction_recovery", recovery_behaviors_carrying_);
+            addRecoveryBehavior("safety_direction_recovery", recovery_behaviors_carrying_, recovery_behavior_names_carrying_);
           }
           else
           {
             if (backward_recovery_allowed_)
             {
-              addRecoveryBehavior("go_back_recovery", recovery_behaviors_);
+              addRecoveryBehavior("go_back_recovery", recovery_behaviors_, recovery_behavior_names_);
             }
 
             if (clearing_rotation_allowed_ && rotate_small_angle_ != 0.0)
             {
-              addRecoveryBehavior("rotate_small_recovery", recovery_behaviors_);
+              addRecoveryBehavior("rotate_small_recovery", recovery_behaviors_,recovery_behavior_names_);
             }
           }
         }
         if (clearing_rotation_allowed_)
         {
-          addRecoveryBehavior("rotate_recovery", recovery_behaviors_);
+          addRecoveryBehavior("rotate_recovery", recovery_behaviors_,recovery_behavior_names_);
           if (use_rotate_recovery_in_towing_)
           {
-            addRecoveryBehavior("rotate_recovery", recovery_behaviors_carrying_);
+            addRecoveryBehavior("rotate_recovery", recovery_behaviors_carrying_,recovery_behavior_names_carrying_);
           }
         }
 
         if (remove_virtual_obstacle_recovery_allowed_)
         {
-          addRecoveryBehavior("remove_virtual_obstacle_recovery", recovery_behaviors_);
-          addRecoveryBehavior("remove_virtual_obstacle_recovery", recovery_behaviors_carrying_);
+          addRecoveryBehavior("remove_virtual_obstacle_recovery", recovery_behaviors_,recovery_behavior_names_);
+          addRecoveryBehavior("remove_virtual_obstacle_recovery", recovery_behaviors_carrying_,recovery_behavior_names_carrying_);
         }
       }
 
@@ -1465,7 +1484,8 @@ namespace move_base {
     }
 
     // check if global_pose time stamp is within costmap transform tolerance
-    if (current_time.toSec() - global_pose.header.stamp.toSec() > costmap->getTransformTolerance())
+    if (!global_pose.header.stamp.isZero() &&
+        current_time.toSec() - global_pose.header.stamp.toSec() > costmap->getTransformTolerance())
     {
       ROS_WARN_THROTTLE(1.0, "Transform timeout for %s. " \
                         "Current time: %.4f, pose stamp: %.4f, tolerance: %.4f", costmap->getName().c_str(),
