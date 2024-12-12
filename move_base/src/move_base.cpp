@@ -603,7 +603,6 @@ namespace move_base {
     cmd_vel.linear.x = 0.0;
     cmd_vel.linear.y = 0.0;
     cmd_vel.angular.z = 0.0;
-    cmd_vel_ = cmd_vel;
     vel_pub_.publish(cmd_vel);
   }
 
@@ -1105,7 +1104,6 @@ namespace move_base {
             last_valid_control_ = ros::Time::now();
             //make sure that we send the velocity command to the base
             vel_pub_.publish(cmd_vel);
-            cmd_vel_ = cmd_vel;
             if(recovery_trigger_ == CONTROLLING_R)
             {
               resetRecovery();

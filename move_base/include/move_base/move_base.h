@@ -116,8 +116,6 @@ namespace move_base {
       bool use_safety_direction_recovery_in_towing_;
       bool use_rotate_recovery_in_towing_;
 
-      geometry_msgs::Twist cmd_vel_;
-
       /**
        * @brief  A service call that clears the costmaps of obstacles
        * @param req The service request 
