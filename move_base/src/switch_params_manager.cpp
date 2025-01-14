@@ -12,7 +12,7 @@ namespace carrying_manager
 {
 SwitchParamsManager::SwitchParamsManager(ros::NodeHandle& nh, ros::NodeHandle& pnh):
   pnh_(pnh),
-  nh_(nh)
+  (nh)
 {
   bool use_carrying_manager = false;
   nh.param<bool>("carrying_manager/use_carrying_manager", use_carrying_manager, false);
@@ -40,11 +40,80 @@ SwitchParamsManager::SwitchParamsManager(ros::NodeHandle& nh, ros::NodeHandle& p
   {"remove_virtual_obstacle_recovery", "remove_virtual_obstacle_recovery/RemoveVirtualObstacleRecovery"}
   };
 
-  loadRecoveryBehaviors();
+  if(!loadRecoveryBehaviors())
+    loadDefaultRecoveryBehaviors();
 }
 
 SwitchParamsManager::~SwitchParamsManager()
 {
+}
+
+//we'll load our default recovery behaviors here
+void SwitchParamsManager::loadDefaultRecoveryBehaviors()
+{
+  recovery_behaviors_->clear();
+  recovery_behaviors_carrying_->clear();
+  try{
+    //we need to set some parameters based on what's been passed in to us to maintain backwards compatibility
+    ros::NodeHandle n("~");
+    n.setParam("conservative_reset/reset_distance", conservative_reset_dist_);
+    n.setParam("aggressive_reset/reset_distance", circumscribed_radius_ * 4);
+
+    for (int i = 0; i < this->outer_loop_recovery_count_; i++)
+    {
+      if (conservative_clearing_map_allowed_)
+      {
+        addRecoveryBehavior("conservative_reset", recovery_behaviors_, recovery_behavior_names_);
+        addRecoveryBehavior("conservative_reset", recovery_behaviors_carrying_, recovery_behavior_names_carrying_);
+      }
+      if (aggressive_clearing_map_allowed_)
+      {
+        addRecoveryBehavior("aggressive_reset", recovery_behaviors_, recovery_behavior_names_);
+        addRecoveryBehavior("aggressive_reset", recovery_behaviors_carrying_, recovery_behavior_names_carrying_);
+      }
+
+      for (int j=0; j < this->inner_loop_recovery_count_; j++)
+      {
+        addRecoveryBehavior("safety_direction_recovery", recovery_behaviors_, recovery_behavior_names_);
+        if (use_safety_direction_recovery_in_towing_)
+        {
+          addRecoveryBehavior("safety_direction_recovery", recovery_behaviors_carrying_, recovery_behavior_names_carrying_);
+        }
+        else
+        {
+          if (backward_recovery_allowed_)
+          {
+            addRecoveryBehavior("go_back_recovery", recovery_behaviors_, recovery_behavior_names_);
+          }
+
+          if (clearing_rotation_allowed_ && rotate_small_angle_ != 0.0)
+          {
+            addRecoveryBehavior("rotate_small_recovery", recovery_behaviors_,recovery_behavior_names_);
+          }
+        }
+      }
+      if (clearing_rotation_allowed_)
+      {
+        addRecoveryBehavior("rotate_recovery", recovery_behaviors_,recovery_behavior_names_);
+        if (use_rotate_recovery_in_towing_)
+        {
+          addRecoveryBehavior("rotate_recovery", recovery_behaviors_carrying_,recovery_behavior_names_carrying_);
+        }
+      }
+
+      if (remove_virtual_obstacle_recovery_allowed_)
+      {
+        addRecoveryBehavior("remove_virtual_obstacle_recovery", recovery_behaviors_,recovery_behavior_names_);
+        addRecoveryBehavior("remove_virtual_obstacle_recovery", recovery_behaviors_carrying_,recovery_behavior_names_carrying_);
+      }
+    }
+
+  }
+  catch(pluginlib::PluginlibException& ex){
+    ROS_FATAL("Failed to load a plugin. This should not happen on default recovery behaviors. Error: %s", ex.what());
+  }
+
+  return;
 }
 
 bool SwitchParamsManager::loadRecoveryBehaviors() 
@@ -112,8 +181,8 @@ bool SwitchParamsManager::createRecoveryBehaviors( XmlRpc::XmlRpcValue behavior_
 
     if (behavior_definitions_.find(type) != behavior_definitions_.end())
     {
-        ROS_INFO("Adding behavior '%s' of type '%s'", name.c_str(), behavior_definitions_[name].c_str());
-        behaviors.push_back(name);
+        ROS_INFO("Adding behavior '%s' of type '%s'", name.c_str(), behavior_definitions_[type].c_str());
+        behaviors.push_back(type);
     }
     else
     {
@@ -138,19 +207,19 @@ void SwitchParamsManager::ReloadRecoveryBehavior(const bool& is_carrying)
 {
   auto recovery_list = is_carrying ? recovery_behaviors_carrying_ : recovery_behaviors_;
 
+  XmlRpc::XmlRpcValue recovery_behaviors_param;
+  XmlRpc::XmlRpcValue current_recovery_param;
+
   for(auto & recovery : recovery_list)
   {
-    private_nh_.setParam("initial_pose_x", map_pose.getOrigin().x());
-
+    current_recovery_param["type"] = recovery; 
+    current_recovery_param["name"] =  behavior_definitions_[recovery];
+    recovery_behaviors_param.push_back(recovery_behaviors_param);
   }
-  private_nh.param("global_costmap/robot_base_frame", robot_base_frame_, std::string("base_link"));
-  private_nh.param("global_costmap/robot_base_frame", robot_base_frame_, std::string("base_link"));
-  private_nh.param("global_costmap/robot_base_frame", robot_base_frame_, std::string("base_link"));
 
-  private_nh_.setParam("initial_pose_x", map_pose.getOrigin().x());
-  private_nh_.setParam("initial_pose_y", map_pose.getOrigin().y());
-  private_nh_.setParam("initial_pose_a", yaw);
+  nh_.setParam("move_base/recovery_behaviors",recovery_behaviors_param);
 
+  ROS_INFO("reload recovery behavior parameters"); 
 }
 
 }  // namespace carrying_manager
