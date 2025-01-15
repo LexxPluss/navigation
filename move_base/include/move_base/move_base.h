@@ -113,8 +113,6 @@ namespace move_base {
       double pre_body_y_ = 0;
       double pre_body_yaw_ = 0;
       bool detectMotionStuck();
-      bool use_safety_direction_recovery_in_towing_;
-      bool use_rotate_recovery_in_towing_;
 
       /**
        * @brief  A service call that clears the costmaps of obstacles
@@ -145,14 +143,6 @@ namespace move_base {
        * @return  True if planning succeeds, false otherwise
        */
       bool makePlan(const geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& plan);
-
-      void addRecoveryBehavior(std::string name, boost::shared_ptr<std::vector<BehPtr>> behaviors,std::vector<std::string> &recovery_behavior_names);
-
-      bool createRecoveryBehaviors(
-        XmlRpc::XmlRpcValue behavior_list,
-        boost::shared_ptr<std::vector<BehPtr>> behaviors,
-        std::vector<std::string> &recovery_behavior_names,
-        int& idx, int depth = 0);
 
       /**
        * @brief  Load the recovery behaviors for the navigation stack from the parameter server
@@ -187,10 +177,6 @@ namespace move_base {
 
       void actionGoalCB(const move_base_msgs::MoveBaseActionGoal::ConstPtr& goal);
 
-      void carryingStatusCB(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg);
-
-      void carryingInfoCB(const lexxauto_msgs::CarryingInformation::ConstPtr& msg);
-
       void planThread();
 
       void executeCb(const move_base_msgs::MoveBaseGoalConstPtr& move_base_goal);
@@ -210,9 +196,6 @@ namespace move_base {
 
       void resetRecovery();
 
-      // feature switch flag
-      bool use_carrying_manager_;
-
       tf2_ros::Buffer& tf_;
 
       MoveBaseActionServer* as_;
@@ -224,20 +207,12 @@ namespace move_base {
       std::string robot_base_frame_, global_frame_;
       bool is_planner_waiting_;
 
-      std::map<std::string, std::string> behavior_definitions_;
-      std::map<std::string, BehPtr> recovery_behaviors_cache_;
-      boost::shared_ptr<std::vector<BehPtr>> current_recovery_behaviors_;
       boost::shared_ptr<std::vector<BehPtr>> recovery_behaviors_;
-      boost::shared_ptr<std::vector<BehPtr>> recovery_behaviors_carrying_;
       std::vector<std::string> recovery_behavior_names_;
-      std::vector<std::string> recovery_behavior_names_carrying_;
 
       unsigned int recovery_index_;
       bool recovery_flag_ = false;
       bool frequent_recovery_motion_ = true;
-      int outer_loop_recovery_count_;
-      int inner_loop_recovery_count_;
-
       geometry_msgs::PoseStamped global_pose_;
       std_msgs::String amr_status_msg_;
       double planner_frequency_, controller_frequency_, inscribed_radius_, circumscribed_radius_;
@@ -249,13 +224,10 @@ namespace move_base {
       ros::Publisher amr_status_pub_, virtual_obstacle_enabled_pub_, dist_to_current_goal_pub_;
       ros::Subscriber goal_sub_, carrying_status_sub_, carrying_info_sub_, action_goal_sub_;
       ros::ServiceServer make_plan_srv_, clear_costmaps_srv_;
-      bool shutdown_costmaps_, clearing_rotation_allowed_, recovery_behavior_enabled_, backward_recovery_allowed_, abort_after_recovery_allowed_;
-      bool remove_virtual_obstacle_recovery_allowed_;
-      bool conservative_clearing_map_allowed_, aggressive_clearing_map_allowed_;
+      bool shutdown_costmaps_, clearing_rotation_allowed_, recovery_behavior_enabled_, abort_after_recovery_allowed_;
       bool make_plan_clear_costmap_, make_plan_add_unreachable_goal_;
 
       double oscillation_timeout_, oscillation_distance_;
-      double rotate_small_angle_;
 
       MoveBaseState state_;
       RecoveryTrigger recovery_trigger_;

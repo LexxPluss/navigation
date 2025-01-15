@@ -67,9 +67,6 @@ namespace move_base {
     ros::NodeHandle private_nh("~");
     ros::NodeHandle nh;
 
-    // feature switch flag
-    nh.param<bool>("carrying_manager/use_carrying_manager", this->use_carrying_manager_, false);
-
     recovery_trigger_ = PLANNING_R;
 
     //get some parameters that will be global to the move base node
@@ -87,15 +84,10 @@ namespace move_base {
     private_nh.param("oscillation_timeout", oscillation_timeout_, 0.0);
     private_nh.param("oscillation_distance", oscillation_distance_, 0.5);
 
-    private_nh.param("use_safety_direction_recovery_in_towing", use_safety_direction_recovery_in_towing_, true);
-    private_nh.param("use_rotate_recovery_in_towing", use_rotate_recovery_in_towing_, true);
-
     // AMRCS-241 The problem of too easy entry into recovery was most likely caused by detectMotionStuck.
     // This parameter is considered unnecessary, but it is left for a while in case something happens.
     private_nh.param("frequent_recovery_motion", frequent_recovery_motion_, true);
 
-    private_nh.param("outer_loop_recovery_count", outer_loop_recovery_count_, 1);
-    private_nh.param("inner_loop_recovery_count", inner_loop_recovery_count_, 2);
 
     private_nh.param("detect_motion_window_time", detect_motion_window_time_, 2.0);
     private_nh.param("detect_motion_stuck_goal_diff_distance", detect_motion_stuck_goal_diff_distance_, 1.0);
@@ -127,16 +119,6 @@ namespace move_base {
 
     //for robot status
     amr_status_pub_ = nh.advertise<std_msgs::String>("amr_status", 1);
-
-    if (this->use_carrying_manager_)
-    {
-      carrying_info_sub_ = nh.subscribe("carrying_manager/carrying_info", 1, &MoveBase::carryingInfoCB, this);
-    }
-    else
-    {
-      carrying_status_sub_ = nh.subscribe<lexxauto_msgs::ActuatorStatus>("actuator_position", 1, boost::bind(&MoveBase::carryingStatusCB, this, _1));
-    }
-
     this->virtual_obstacle_enabled_pub_ = nh.advertise<std_msgs::Bool>("virtual_obstacle_map/enable", 1, true);
     recovery_status_pub_= action_nh.advertise<move_base_msgs::RecoveryStatus>("recovery_status", 1);
 
@@ -155,12 +137,8 @@ namespace move_base {
     private_nh.param("shutdown_costmaps", shutdown_costmaps_, false);
     private_nh.param("clearing_rotation_allowed", clearing_rotation_allowed_, true);
     private_nh.param("recovery_behavior_enabled", recovery_behavior_enabled_, true);
-    private_nh.param("backward_recovery_allowed", backward_recovery_allowed_, false);
     private_nh.param("abort_after_recovery_allowed", abort_after_recovery_allowed_, false);
-    private_nh.param("conservative_clearing_map_allowed", conservative_clearing_map_allowed_, false);
-    private_nh.param("aggressive_clearing_map_allowed", aggressive_clearing_map_allowed_, false);
-    private_nh.param("remove_virtual_obstacle_recovery_allowed", remove_virtual_obstacle_recovery_allowed_, false);
-    private_nh.param("rotate_small_angle", rotate_small_angle_, 0.0);
+
 
     //create the ros wrapper for the planner's costmap... and initializer a pointer we'll use with the underlying map
     planner_costmap_ros_ = new costmap_2d::Costmap2DROS("global_costmap", tf_);
@@ -206,20 +184,7 @@ namespace move_base {
       controller_costmap_ros_->stop();
     }
 
-    this->recovery_behaviors_ = boost::make_shared<std::vector<BehPtr>>();
-    this->recovery_behaviors_carrying_ = boost::make_shared<std::vector<BehPtr>>();
-    this->current_recovery_behaviors_ = this->recovery_behaviors_;
-
     //load any user specified recovery behaviors, and if that fails load the defaults
-    behavior_definitions_ = {
-      {"conservative_reset", "clear_costmap_recovery/ClearCostmapRecovery"},
-      {"aggressive_reset", "clear_costmap_recovery/ClearCostmapRecovery"},
-      {"safety_direction_recovery", "safety_direction_recovery/SafetyDirectionRecovery"},
-      {"rotate_recovery", "rotate_recovery/RotateRecovery"},
-      {"go_back_recovery", "go_back_recovery/GoBackRecovery"},
-      {"rotate_small_recovery", "rotate_small_recovery/RotateSmallRecovery"},
-      {"remove_virtual_obstacle_recovery", "remove_virtual_obstacle_recovery/RemoveVirtualObstacleRecovery"}
-    };
     if(!loadRecoveryBehaviors(private_nh)){
       loadDefaultRecoveryBehaviors();
     }
@@ -345,30 +310,6 @@ namespace move_base {
     std_msgs::Bool enable_msg;
     enable_msg.data = true;
     this->virtual_obstacle_enabled_pub_.publish(enable_msg);
-  }
-
-  void MoveBase::carryingStatusCB(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg)
-  {
-    if (msg->connect)
-    {
-      this->current_recovery_behaviors_ = this->recovery_behaviors_carrying_;
-    }
-    else
-    {
-      this->current_recovery_behaviors_ = this->recovery_behaviors_;
-    }
-  }
-
-  void MoveBase::carryingInfoCB(const lexxauto_msgs::CarryingInformation::ConstPtr& msg)
-  {
-    if (msg->weight_applied)
-    {
-      this->current_recovery_behaviors_ = this->recovery_behaviors_carrying_;
-    }
-    else
-    {
-      this->current_recovery_behaviors_ = this->recovery_behaviors_;
-    }
   }
 
   void MoveBase::clearCostmapWindows(double size_x, double size_y){
@@ -542,7 +483,6 @@ namespace move_base {
 
   MoveBase::~MoveBase(){
     recovery_behaviors_->clear();
-    recovery_behaviors_carrying_->clear();
 
     delete dsrv_;
 
@@ -1149,7 +1089,7 @@ namespace move_base {
       case CLEARING:
         ROS_DEBUG_NAMED("move_base","In clearing/recovery state");
         //we'll invoke whatever recovery behavior we're currently on if they're enabled
-        if(recovery_behavior_enabled_ && recovery_index_ < this->current_recovery_behaviors_->size()){
+        if(recovery_behavior_enabled_ && recovery_index_ < this->recovery_behaviors_->size()){
           ROS_DEBUG_NAMED("move_base_recovery","Executing behavior %u of %zu", recovery_index_+1, recovery_behaviors_->size());
           amr_status_msg_.data = "RECOVERY";
           amr_status_pub_.publish(amr_status_msg_);
@@ -1165,8 +1105,8 @@ namespace move_base {
 
           if (recovery_flag_ || frequent_recovery_motion_)
           {
-            ROS_INFO("Executing behavior %u of %zu", recovery_index_, this->current_recovery_behaviors_->size());
-            (*this->current_recovery_behaviors_)[recovery_index_]->runBehavior();
+            ROS_INFO("Executing behavior %u of %zu", recovery_index_, this->recovery_behaviors_->size());
+            (*this->recovery_behaviors_)[recovery_index_]->runBehavior();
             recovery_index_++;
           }
 
@@ -1225,204 +1165,125 @@ namespace move_base {
     return false;
   }
 
-  void MoveBase::addRecoveryBehavior(std::string name, boost::shared_ptr<std::vector<BehPtr>> behaviors,std::vector<std::string> &recovery_behavior_names)
-  {
-    std::string type = behavior_definitions_[name];
-    ROS_INFO("Adding behavior '%s' of type '%s'", name.c_str(), type.c_str());
-    if (recovery_behaviors_cache_.find(type) != recovery_behaviors_cache_.end())
-    {
-      behaviors->push_back(recovery_behaviors_cache_.at(type));
-    }
-    else
-    {
-      BehPtr behavior(recovery_loader_.createInstance(type));
-      behavior->initialize(name, &tf_, planner_costmap_ros_, controller_costmap_ros_);
-      recovery_behaviors_cache_[type] = behavior;
-      behaviors->push_back(behavior);
-    }
-    recovery_behavior_names.push_back(name);
-  }
-
-  bool MoveBase::createRecoveryBehaviors(
-    XmlRpc::XmlRpcValue behavior_list,
-    boost::shared_ptr<std::vector<BehPtr>> behaviors,
-    std::vector<std::string> &recovery_behavior_names,
-    int& idx, int depth)
-  {
-    for (; idx < behavior_list.size(); ++idx)
-    {
-      if (behavior_list[idx].getType() != XmlRpc::XmlRpcValue::TypeStruct)
-      {
-        ROS_ERROR("Each recovery behavior must be a struct.");
-        continue;
-      }
-
-      std::string type = static_cast<std::string>(behavior_list[idx]["type"]);
-
-      if (type == "loop_start")
-      {
-        int loop_count = 0;
-        if (behavior_list[idx].hasMember("params") && behavior_list[idx]["params"].hasMember("loop_count"))
-        {
-          loop_count = static_cast<int>(behavior_list[idx]["params"]["loop_count"]);
-        }
-
-        int delta_idx = 0;
-        for (int repeat = 0; repeat < loop_count; ++repeat)
-        {
-          int tmp_idx = idx + 1;
-          if (!createRecoveryBehaviors(behavior_list, behaviors, recovery_behavior_names, tmp_idx, depth + 1))
-          {
+   bool MoveBase::loadRecoveryBehaviors(ros::NodeHandle node){
+    XmlRpc::XmlRpcValue behavior_list;
+    if(node.getParam("recovery_behaviors", behavior_list)){
+      if(behavior_list.getType() == XmlRpc::XmlRpcValue::TypeArray){
+        for(int i = 0; i < behavior_list.size(); ++i){
+          if(behavior_list[i].getType() == XmlRpc::XmlRpcValue::TypeStruct){
+            if(behavior_list[i].hasMember("name") && behavior_list[i].hasMember("type")){
+              //check for recovery behaviors with the same name
+              for(int j = i + 1; j < behavior_list.size(); j++){
+                if(behavior_list[j].getType() == XmlRpc::XmlRpcValue::TypeStruct){
+                  if(behavior_list[j].hasMember("name") && behavior_list[j].hasMember("type")){
+                    std::string name_i = behavior_list[i]["name"];
+                    std::string name_j = behavior_list[j]["name"];
+                    if(name_i == name_j){
+                      ROS_ERROR("A recovery behavior with the name %s already exists, this is not allowed. Using the default recovery behaviors instead.",
+                          name_i.c_str());
+                      return false;
+                    }
+                  }
+                }
+              }
+            }
+            else{
+              ROS_ERROR("Recovery behaviors must have a name and a type and this does not. Using the default recovery behaviors instead.");
+              return false;
+            }
+          }
+          else{
+            ROS_ERROR("Recovery behaviors must be specified as maps, but they are XmlRpcType %d. We'll use the default recovery behaviors instead.",
+                behavior_list[i].getType());
             return false;
           }
-          delta_idx = tmp_idx - idx;
         }
-        idx += delta_idx;
+
+        //if we've made it to this point, we know that the list is legal so we'll create all the recovery behaviors
+        for(int i = 0; i < behavior_list.size(); ++i){
+          try{
+            //check if a non fully qualified name has potentially been passed in
+            if(!recovery_loader_.isClassAvailable(behavior_list[i]["type"])){
+              std::vector<std::string> classes = recovery_loader_.getDeclaredClasses();
+              for(unsigned int i = 0; i < classes.size(); ++i){
+                if(behavior_list[i]["type"] == recovery_loader_.getName(classes[i])){
+                  //if we've found a match... we'll get the fully qualified name and break out of the loop
+                  ROS_WARN("Recovery behavior specifications should now include the package name. You are using a deprecated API. Please switch from %s to %s in your yaml file.",
+                      std::string(behavior_list[i]["type"]).c_str(), classes[i].c_str());
+                  behavior_list[i]["type"] = classes[i];
+                  break;
+                }
+              }
+            }
+
+            boost::shared_ptr<nav_core::RecoveryBehavior> behavior(recovery_loader_.createInstance(behavior_list[i]["type"]));
+
+            //shouldn't be possible, but it won't hurt to check
+            if(behavior.get() == NULL){
+              ROS_ERROR("The ClassLoader returned a null pointer without throwing an exception. This should not happen");
+              return false;
+            }
+
+            //initialize the recovery behavior with its name
+            behavior->initialize(behavior_list[i]["name"], &tf_, planner_costmap_ros_, controller_costmap_ros_);
+            recovery_behavior_names_.push_back(behavior_list[i]["name"]);
+            recovery_behaviors_.push_back(behavior);
+          }
+          catch(pluginlib::PluginlibException& ex){
+            ROS_ERROR("Failed to load a plugin. Using default recovery behaviors. Error: %s", ex.what());
+            return false;
+          }
+        }
       }
-      else if (type == "loop_end")
-      {
-        if (depth == 0)
-        {
-          ROS_ERROR("Mismatched 'loop_end' without corresponding 'loop_start'.");
-          return false;
-        }
-        return true;
-      }
-      else
-      {
-        if (behavior_definitions_.find(type) != behavior_definitions_.end())
-        {
-          addRecoveryBehavior(type, behaviors,recovery_behavior_names);
-        }
-        else
-        {
-          ROS_WARN("Unknown recovery behavior type: %s", type.c_str());
-        }
-      }
-    }
-
-    if (0 < depth)
-    {
-      ROS_ERROR("Mismatched 'loop_start' without corresponding 'loop_end'.");
-      return false;
-    }
-    return true;
-  }
-
-  bool MoveBase::loadRecoveryBehaviors(ros::NodeHandle node) {
-    XmlRpc::XmlRpcValue behavior_list;
-    if (!node.getParam("recovery_behaviors", behavior_list))
-    {
-      ROS_ERROR_STREAM("Failed to get 'recovery_behaviors' parameter.");
-      return false;
-    }
-
-    if (behavior_list.getType() != XmlRpc::XmlRpcValue::TypeArray)
-    {
-      ROS_ERROR_STREAM("Recovery behaviors should be specified as a list.");
-      return false;
-    }
-
-    XmlRpc::XmlRpcValue behavior_list_carrying;
-    if (!node.getParam("recovery_behaviors_carrying", behavior_list_carrying))
-    {
-      ROS_ERROR_STREAM("Failed to get 'recovery_behaviors_carrying' parameter.");
-      return false;
-    }
-
-    if (behavior_list_carrying.getType() != XmlRpc::XmlRpcValue::TypeArray)
-    {
-      ROS_ERROR_STREAM("Recovery behaviors should be specified as a list.");
-      return false;
-    }
-
-    int recovery_loop_count;
-    node.param("recovery_loop_count", recovery_loop_count, 1);
-    for (int i = 0; i < recovery_loop_count; i++)
-    {
-      int behavior_index = 0;
-      if (!createRecoveryBehaviors(behavior_list, recovery_behaviors_, recovery_behavior_names_, behavior_index))
-      {
-        recovery_behaviors_->clear();
+      else{
+        ROS_ERROR("The recovery behavior specification must be a list, but is of XmlRpcType %d. We'll use the default recovery behaviors instead.",
+            behavior_list.getType());
         return false;
       }
     }
-
-    int recovery_loop_count_carrying;
-    node.param("recovery_loop_count_carrying", recovery_loop_count_carrying, 1);
-    for (int i = 0; i < recovery_loop_count_carrying; i++)
-    {
-      int behavior_index_carrying = 0;
-      if (!createRecoveryBehaviors(behavior_list_carrying, recovery_behaviors_carrying_, recovery_behavior_names_carrying_, behavior_index_carrying))
-      {
-        recovery_behaviors_->clear();
-        recovery_behaviors_carrying_->clear();
-        return false;
-      }
+    else{
+      //if no recovery_behaviors are specified, we'll just load the defaults
+      return false;
     }
 
+    //if we've made it here... we've constructed a recovery behavior list successfully
     return true;
   }
 
   //we'll load our default recovery behaviors here
   void MoveBase::loadDefaultRecoveryBehaviors(){
-    recovery_behaviors_->clear();
-    recovery_behaviors_carrying_->clear();
+    recovery_behaviors_.clear();
     try{
       //we need to set some parameters based on what's been passed in to us to maintain backwards compatibility
       ros::NodeHandle n("~");
       n.setParam("conservative_reset/reset_distance", conservative_reset_dist_);
       n.setParam("aggressive_reset/reset_distance", circumscribed_radius_ * 4);
 
-      for (int i = 0; i < this->outer_loop_recovery_count_; i++)
-      {
-        if (conservative_clearing_map_allowed_)
-        {
-          addRecoveryBehavior("conservative_reset", recovery_behaviors_, recovery_behavior_names_);
-          addRecoveryBehavior("conservative_reset", recovery_behaviors_carrying_, recovery_behavior_names_carrying_);
-        }
-        if (aggressive_clearing_map_allowed_)
-        {
-          addRecoveryBehavior("aggressive_reset", recovery_behaviors_, recovery_behavior_names_);
-          addRecoveryBehavior("aggressive_reset", recovery_behaviors_carrying_, recovery_behavior_names_carrying_);
-        }
+      //first, we'll load a recovery behavior to clear the costmap
+      boost::shared_ptr<nav_core::RecoveryBehavior> cons_clear(recovery_loader_.createInstance("clear_costmap_recovery/ClearCostmapRecovery"));
+      cons_clear->initialize("conservative_reset", &tf_, planner_costmap_ros_, controller_costmap_ros_);
+      recovery_behavior_names_.push_back("conservative_reset");
+      recovery_behaviors_.push_back(cons_clear);
 
-        for (int j=0; j < this->inner_loop_recovery_count_; j++)
-        {
-          addRecoveryBehavior("safety_direction_recovery", recovery_behaviors_, recovery_behavior_names_);
-          if (use_safety_direction_recovery_in_towing_)
-          {
-            addRecoveryBehavior("safety_direction_recovery", recovery_behaviors_carrying_, recovery_behavior_names_carrying_);
-          }
-          else
-          {
-            if (backward_recovery_allowed_)
-            {
-              addRecoveryBehavior("go_back_recovery", recovery_behaviors_, recovery_behavior_names_);
-            }
-
-            if (clearing_rotation_allowed_ && rotate_small_angle_ != 0.0)
-            {
-              addRecoveryBehavior("rotate_small_recovery", recovery_behaviors_,recovery_behavior_names_);
-            }
-          }
-        }
-        if (clearing_rotation_allowed_)
-        {
-          addRecoveryBehavior("rotate_recovery", recovery_behaviors_,recovery_behavior_names_);
-          if (use_rotate_recovery_in_towing_)
-          {
-            addRecoveryBehavior("rotate_recovery", recovery_behaviors_carrying_,recovery_behavior_names_carrying_);
-          }
-        }
-
-        if (remove_virtual_obstacle_recovery_allowed_)
-        {
-          addRecoveryBehavior("remove_virtual_obstacle_recovery", recovery_behaviors_,recovery_behavior_names_);
-          addRecoveryBehavior("remove_virtual_obstacle_recovery", recovery_behaviors_carrying_,recovery_behavior_names_carrying_);
-        }
+      //next, we'll load a recovery behavior to rotate in place
+      boost::shared_ptr<nav_core::RecoveryBehavior> rotate(recovery_loader_.createInstance("rotate_recovery/RotateRecovery"));
+      if(clearing_rotation_allowed_){
+        rotate->initialize("rotate_recovery", &tf_, planner_costmap_ros_, controller_costmap_ros_);
+        recovery_behavior_names_.push_back("rotate_recovery");
+        recovery_behaviors_.push_back(rotate);
       }
 
+      //next, we'll load a recovery behavior that will do an aggressive reset of the costmap
+      boost::shared_ptr<nav_core::RecoveryBehavior> ags_clear(recovery_loader_.createInstance("clear_costmap_recovery/ClearCostmapRecovery"));
+      ags_clear->initialize("aggressive_reset", &tf_, planner_costmap_ros_, controller_costmap_ros_);
+      recovery_behavior_names_.push_back("aggressive_reset");
+      recovery_behaviors_.push_back(ags_clear);
+
+      //we'll rotate in-place one more time
+      if(clearing_rotation_allowed_){
+        recovery_behaviors_.push_back(rotate);
+        recovery_behavior_names_.push_back("rotate_recovery");
+      }
     }
     catch(pluginlib::PluginlibException& ex){
       ROS_FATAL("Failed to load a plugin. This should not happen on default recovery behaviors. Error: %s", ex.what());
