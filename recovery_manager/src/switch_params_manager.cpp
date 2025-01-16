@@ -5,8 +5,8 @@
  *
  *********************************************************************/
 
-#include <carrying_manager/switch_params_manager.hpp>
-#include <lexxauto_msgs/CarryingInformation.h>
+#include <recovery_manager/switch_params_manager.hpp>
+
 
 namespace carrying_manager
 {
@@ -16,15 +16,15 @@ SwitchParamsManager::SwitchParamsManager(ros::NodeHandle& nh, ros::NodeHandle& p
 {
   bool use_carrying_manager = false;
   // feature switch flag
-  nh_.param<bool>("carrying_manager/use_carrying_manager", this->use_carrying_manager_, false);
+  nh_.param<bool>("carrying_manager/use_carrying_manager", use_carrying_manager, false);
 
   if (use_carrying_manager)
   {
-    carrying_info_sub_ = nh.subscribe("carrying_manager/carrying_info", 1, &MoveBase::carryingInfoCB, this);
+    carrying_info_sub_ = nh.subscribe("carrying_manager/carrying_info", 1, &SwitchParamsManager::carryingInfoCB, this);
   }
   else
   {
-    carrying_status_sub_ = nh.subscribe<lexxauto_msgs::ActuatorStatus>("actuator_position", 1, boost::bind(&MoveBase::carryingStatusCB, this, _1));
+    carrying_status_sub_ = nh.subscribe<lexxauto_msgs::ActuatorStatus>("actuator_position", 1, boost::bind(&SwitchParamsManager::carryingStatusCB, this, _1));
   }
 
   //could be directly parsed from config, but will leave it for backward compatibility now
@@ -75,7 +75,7 @@ void SwitchParamsManager::loadDefaultRecoveryBehaviors()
     // nh_.setParam("move_base/conservative_reset/reset_distance", conservative_reset_dist_); //TODO
     // nh_.setParam("move_base/aggressive_reset/reset_distance", circumscribed_radius_ * 4);
 
-    for (int i = 0; i < this->outer_loop_recovery_count; i++)
+    for (int i = 0; i < outer_loop_recovery_count; i++)
     {
       if (conservative_clearing_map_allowed)
       {
@@ -88,10 +88,10 @@ void SwitchParamsManager::loadDefaultRecoveryBehaviors()
         recovery_behaviors_carrying_.push_back("aggressive_reset");
       }
 
-      for (int j=0; j < this->inner_loop_recovery_count; j++)
+      for (int j=0; j < inner_loop_recovery_count; j++)
       {
         recovery_behaviors_.push_back("safety_direction_recovery");
-        if (use_safety_direction_recovery_in_towing_)
+        if (use_safety_direction_recovery_in_towing)
         {
           recovery_behaviors_carrying_.push_back("safety_direction_recovery");
         }
@@ -139,18 +139,18 @@ bool SwitchParamsManager::loadRecoveryBehaviors()
     return false;
   }
   
-  if (loadRecoveryBehavior("recovery_behaviors", "recovery_loop_count", recovery_behaviors_))
+  if (loadGivenRecoveryBehavior("recovery_behaviors", "recovery_loop_count", recovery_behaviors_))
     return false;
   
-  if (loadRecoveryBehavior("recovery_behaviors_carrying", "recovery_loop_count_carrying", recovery_behaviors_carrying_))
+  if (loadGivenRecoveryBehavior("recovery_behaviors_carrying", "recovery_loop_count_carrying", recovery_behaviors_carrying_))
     return false;
 
   return true;
 }
 
-bool SwitchParamsManager::loadRecoveryBehavior(const std::string & field_name, 
+bool SwitchParamsManager::loadGivenRecoveryBehavior(const std::string & field_name, 
                                               const std::string & loop_count_str, 
-                                              boost::shared_ptr<std::vector<BehPtr>> behaviors) 
+                                              std::vector<std::string> & behaviors) 
 {
   XmlRpc::XmlRpcValue behavior_list;
   if (!nh_.getParam(field_name, behavior_list))
@@ -173,34 +173,32 @@ bool SwitchParamsManager::loadRecoveryBehavior(const std::string & field_name,
     int behavior_index = 0;
     if (!createRecoveryBehaviors(behavior_list, behaviors))
     {
-      recovery_behaviors_->clear(); //TODO replace ?
-      recovery_behaviors_carrying_->clear();
+      behaviors.clear();
       return false;
     }
   }
 }
 
-bool SwitchParamsManager::createRecoveryBehaviors( XmlRpc::XmlRpcValue behavior_list,
-                                                  boost::shared_ptr<std::vector<BehPtr>> behaviors)
+bool SwitchParamsManager::createRecoveryBehaviors(XmlRpc::XmlRpcValue behavior_list,
+                                              std::vector<std::string> & behaviors) 
 {
-  for (auto & current_behavior : behavior_list)
+  for (int idx = 0; idx < behavior_list.size(); idx++) // & current_behavior : behavior_list)
   {
-    if (current_behavior.getType() != XmlRpc::XmlRpcValue::TypeStruct)
+    if (behavior_list[idx].getType() != XmlRpc::XmlRpcValue::TypeStruct)
     {
       ROS_ERROR("Each recovery behavior must be a struct.");
       continue;
     }
-
-    std::string type = static_cast<std::string>(current_behavior["type"]);
+    std::string type = behavior_list[idx]["type"];
 
     if (behavior_definitions_.find(type) != behavior_definitions_.end())
     {
-        ROS_INFO("Adding behavior '%s' of type '%s'", name.c_str(), behavior_definitions_[type].c_str());
+        ROS_INFO("Adding behavior '%s' of type '%s'",type, behavior_definitions_[type].c_str());
         behaviors.push_back(type);
     }
     else
     {
-      ROS_WARN("Unknown recovery behavior type: %s", type.c_str());
+      ROS_WARN("Unknown recovery behavior type: %s", type);
       return false;
     }
   }
@@ -209,26 +207,29 @@ bool SwitchParamsManager::createRecoveryBehaviors( XmlRpc::XmlRpcValue behavior_
 
 void SwitchParamsManager::carryingStatusCB(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg)
 {
-  ReloadRecoveryBehavior(msg->connect);
+  reloadRecoveryBehavior(msg->connect);
 }
 
-void SwitchParamsManager::CarryingInfoCB(const lexxauto_msgs::CarryingInformation::ConstPtr& msg)
+void SwitchParamsManager::carryingInfoCB(const lexxauto_msgs::CarryingInformation::ConstPtr& msg)
 { 
-  ReloadRecoveryBehavior(msg->weight_applied);
+  reloadRecoveryBehavior(msg->weight_applied);
 }
 
-void SwitchParamsManager::ReloadRecoveryBehavior(const bool& is_carrying)
+void SwitchParamsManager::reloadRecoveryBehavior(const bool& is_carrying)
 {
   auto recovery_list = is_carrying ? recovery_behaviors_carrying_ : recovery_behaviors_;
 
   XmlRpc::XmlRpcValue recovery_behaviors_param;
   XmlRpc::XmlRpcValue current_recovery_param;
 
+  recovery_behaviors_param.setSize(recovery_list.size());
+  int index = 0;
   for(auto & recovery : recovery_list)
   {
     current_recovery_param["type"] = recovery; 
     current_recovery_param["name"] =  behavior_definitions_[recovery];
-    recovery_behaviors_param.push_back(recovery_behaviors_param);
+    recovery_behaviors_param[index] = recovery_behaviors_param;
+    index++;
   }
 
   nh_.setParam("move_base/recovery_behaviors",recovery_behaviors_param);

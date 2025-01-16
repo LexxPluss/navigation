@@ -1227,7 +1227,7 @@ namespace move_base {
             //initialize the recovery behavior with its name
             behavior->initialize(behavior_list[i]["name"], &tf_, planner_costmap_ros_, controller_costmap_ros_);
             recovery_behavior_names_.push_back(behavior_list[i]["name"]);
-            recovery_behaviors_.push_back(behavior);
+            recovery_behaviors_->push_back(behavior);
           }
           catch(pluginlib::PluginlibException& ex){
             ROS_ERROR("Failed to load a plugin. Using default recovery behaviors. Error: %s", ex.what());
@@ -1252,7 +1252,7 @@ namespace move_base {
 
   //we'll load our default recovery behaviors here
   void MoveBase::loadDefaultRecoveryBehaviors(){
-    recovery_behaviors_.clear();
+    recovery_behaviors_->clear();
     try{
       //we need to set some parameters based on what's been passed in to us to maintain backwards compatibility
       ros::NodeHandle n("~");
@@ -1263,25 +1263,25 @@ namespace move_base {
       boost::shared_ptr<nav_core::RecoveryBehavior> cons_clear(recovery_loader_.createInstance("clear_costmap_recovery/ClearCostmapRecovery"));
       cons_clear->initialize("conservative_reset", &tf_, planner_costmap_ros_, controller_costmap_ros_);
       recovery_behavior_names_.push_back("conservative_reset");
-      recovery_behaviors_.push_back(cons_clear);
+      recovery_behaviors_->push_back(cons_clear);
 
       //next, we'll load a recovery behavior to rotate in place
       boost::shared_ptr<nav_core::RecoveryBehavior> rotate(recovery_loader_.createInstance("rotate_recovery/RotateRecovery"));
       if(clearing_rotation_allowed_){
         rotate->initialize("rotate_recovery", &tf_, planner_costmap_ros_, controller_costmap_ros_);
         recovery_behavior_names_.push_back("rotate_recovery");
-        recovery_behaviors_.push_back(rotate);
+        recovery_behaviors_->push_back(rotate);
       }
 
       //next, we'll load a recovery behavior that will do an aggressive reset of the costmap
       boost::shared_ptr<nav_core::RecoveryBehavior> ags_clear(recovery_loader_.createInstance("clear_costmap_recovery/ClearCostmapRecovery"));
       ags_clear->initialize("aggressive_reset", &tf_, planner_costmap_ros_, controller_costmap_ros_);
       recovery_behavior_names_.push_back("aggressive_reset");
-      recovery_behaviors_.push_back(ags_clear);
+      recovery_behaviors_->push_back(ags_clear);
 
       //we'll rotate in-place one more time
       if(clearing_rotation_allowed_){
-        recovery_behaviors_.push_back(rotate);
+        recovery_behaviors_->push_back(rotate);
         recovery_behavior_names_.push_back("rotate_recovery");
       }
     }

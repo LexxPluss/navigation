@@ -9,6 +9,8 @@
 
 #include <ros/ros.h>
 #include <nav_core/recovery_behavior.h>
+#include <lexxauto_msgs/CarryingInformation.h>
+#include <lexxauto_msgs/ActuatorStatus.h>
 
 // namespace
 namespace carrying_manager
@@ -24,19 +26,20 @@ public:
 private:
   typedef boost::shared_ptr<nav_core::RecoveryBehavior> BehPtr;
 
-  bool loadRecoveryBehaviors(ros::NodeHandle node);
+  bool loadRecoveryBehaviors();
+  void loadDefaultRecoveryBehaviors();
+  bool loadGivenRecoveryBehavior(const std::string & field_name, 
+                                              const std::string & loop_count_str, 
+                                              std::vector<std::string> &behaviors);   
 
-  void addRecoveryBehavior(std::string name, boost::shared_ptr<std::vector<BehPtr>> behaviors,std::vector<std::string> &recovery_behavior_names);
-
-  bool createRecoveryBehaviors(
-    XmlRpc::XmlRpcValue behavior_list,
-    boost::shared_ptr<std::vector<BehPtr>> behaviors,
-    std::vector<std::string> &recovery_behavior_names,
-    int& idx, int depth = 0);
+  bool createRecoveryBehaviors( XmlRpc::XmlRpcValue behavior_list,
+                                              std::vector<std::string> & behaviors);
 
   void carryingStatusCB(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg);
 
   void carryingInfoCB(const lexxauto_msgs::CarryingInformation::ConstPtr& msg);
+
+  void reloadRecoveryBehavior(const bool& is_carrying);
 
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
@@ -44,16 +47,11 @@ private:
   ros::Subscriber carrying_status_sub_;
   ros::Subscriber carrying_info_sub_;
 
-  int outer_loop_recovery_count_;
-  int inner_loop_recovery_count_;
 
   std::map<std::string, std::string> behavior_definitions_;
-  std::map<std::string, BehPtr> recovery_behaviors_cache_;
 
-  boost::shared_ptr<std::vector<BehPtr>> recovery_behaviors_;
-  boost::shared_ptr<std::vector<BehPtr>> recovery_behaviors_carrying_;
-  std::vector<std::string> recovery_behavior_names_;
-  std::vector<std::string> recovery_behavior_names_carrying_;
+  std::vector<std::string> recovery_behaviors_;
+  std::vector<std::string> recovery_behaviors_carrying_;
 
  };
 
