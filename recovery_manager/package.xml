@@ -7,7 +7,7 @@
     This package provides a behavior switch depending on the cart loading status
   
   </description>
-  <maintainer email="mathilde.chachura@lexxpluss.com">Remma Matsuda</maintainer>
+  <maintainer email="mathilde.chachura@lexxpluss.com">Mathilde Chachura</maintainer>
   <license>TODO</license>
 
   <buildtool_depend>catkin</buildtool_depend>

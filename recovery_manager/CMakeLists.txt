@@ -31,17 +31,25 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
+add_executable(switch_params_manager src/switch_params_manager.cpp ${SOURCES})
 add_library(switch_params_manager STATIC src/switch_params_manager.cpp)
 add_dependencies(switch_params_manager ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(switch_params_manager ${catkin_LIBRARIES})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
 
-install(TARGETS switch_params_manager
+
+if(CATKIN_ENABLE_LINTS)
+  # catkin-lint
+  add_custom_target(${PROJECT_NAME}_CATKIN_LINT ALL COMMAND catkin_lint --pkg ${PROJECT_NAME} -W2)
+  # ros-lint
+  add_custom_target(${PROJECT_NAME}_CHECK_BUILD_SYSTEM ALL COMMAND make cmake_check_build_system)
+  add_custom_target(${PROJECT_NAME}_ROSLINT ALL COMMAND make roslint_${PROJECT_NAME})
+endif()
+
+install(
+  TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-)
-
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
