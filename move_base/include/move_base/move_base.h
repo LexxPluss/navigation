@@ -231,7 +231,8 @@ namespace move_base {
       boost::shared_ptr<std::vector<BehPtr>> recovery_behaviors_carrying_;
       std::vector<std::string> recovery_behavior_names_;
       std::vector<std::string> recovery_behavior_names_carrying_;
-
+      bool is_carrying_;
+      
       unsigned int recovery_index_;
       bool recovery_flag_ = false;
       bool frequent_recovery_motion_ = true;

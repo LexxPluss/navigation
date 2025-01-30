@@ -357,6 +357,7 @@ namespace move_base {
     {
       this->current_recovery_behaviors_ = this->recovery_behaviors_;
     }
+    is_carrying_ = msg->connect;  
   }
 
   void MoveBase::carryingInfoCB(const lexxauto_msgs::CarryingInformation::ConstPtr& msg)
@@ -369,6 +370,7 @@ namespace move_base {
     {
       this->current_recovery_behaviors_ = this->recovery_behaviors_;
     }
+    is_carrying_ = msg->weight_applied; 
   }
 
   void MoveBase::clearCostmapWindows(double size_x, double size_y){
@@ -1150,15 +1152,15 @@ namespace move_base {
         ROS_DEBUG_NAMED("move_base","In clearing/recovery state");
         //we'll invoke whatever recovery behavior we're currently on if they're enabled
         if(recovery_behavior_enabled_ && recovery_index_ < this->current_recovery_behaviors_->size()){
-          ROS_DEBUG_NAMED("move_base_recovery","Executing behavior %u of %zu", recovery_index_+1, recovery_behaviors_->size());
+          ROS_DEBUG_NAMED("move_base_recovery","Executing behavior %u of %zu", recovery_index_+1, this->current_recovery_behaviors_->size());
           amr_status_msg_.data = "RECOVERY";
           amr_status_pub_.publish(amr_status_msg_);
 
           move_base_msgs::RecoveryStatus msg;
           msg.pose_stamped = current_position;
           msg.current_recovery_number = recovery_index_;
-          msg.total_number_of_recoveries = recovery_behaviors_->size();
-          msg.recovery_behavior_name =  recovery_behavior_names_[recovery_index_];
+          msg.total_number_of_recoveries = this->current_recovery_behaviors_->size();
+          msg.recovery_behavior_name =  is_carrying_ ? recovery_behavior_names_carrying_[recovery_index_] : recovery_behavior_names_[recovery_index_];
 
           recovery_status_pub_.publish(msg);
 
