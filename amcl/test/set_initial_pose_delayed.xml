@@ -13,7 +13,7 @@ setting pose: 30.329 34.644 3.142
          before using it, so there should be no mis-localization caused by this. -->
     <node name="delayed_pose_setter" pkg="amcl" type="set_pose.py" args="47.443 21.421 -1.003 34.8 39.6"/>
     <node pkg="amcl" type="amcl" name="amcl" respawn="false" output="screen">
-      <remap from="scan_amcl" to="base_scan" />
+      <remap from="scan_pose_estimation" to="base_scan" />
       <param name="transform_tolerance" value="0.2" />
       <param name="gui_publish_rate" value="10.0"/>
       <param name="save_pose_rate" value="0.5"/>
