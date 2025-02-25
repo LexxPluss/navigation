@@ -100,10 +100,9 @@ namespace move_base {
       /**
        * @brief  Performs a control cycle
        * @param goal A reference to the goal to pursue
-       * @param global_plan A reference to the global plan being used
        * @return True if processing of the goal is done, false otherwise
        */
-      bool executeCycle(geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& global_plan);
+      bool executeCycle(geometry_msgs::PoseStamped& goal);
 
     private:
       typedef boost::shared_ptr<nav_core::RecoveryBehavior> BehPtr;
@@ -116,8 +115,6 @@ namespace move_base {
       bool detectMotionStuck();
       bool use_safety_direction_recovery_in_towing_;
       bool use_rotate_recovery_in_towing_;
-
-      geometry_msgs::Twist cmd_vel_;
 
       /**
        * @brief  A service call that clears the costmaps of obstacles
@@ -149,11 +146,12 @@ namespace move_base {
        */
       bool makePlan(const geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& plan);
 
-      void addRecoveryBehavior(std::string name, boost::shared_ptr<std::vector<BehPtr>> behaviors);
+      void addRecoveryBehavior(std::string name, boost::shared_ptr<std::vector<BehPtr>> behaviors,std::vector<std::string> &recovery_behavior_names);
 
       bool createRecoveryBehaviors(
         XmlRpc::XmlRpcValue behavior_list,
         boost::shared_ptr<std::vector<BehPtr>> behaviors,
+        std::vector<std::string> &recovery_behavior_names,
         int& idx, int depth = 0);
 
       /**
@@ -231,6 +229,10 @@ namespace move_base {
       boost::shared_ptr<std::vector<BehPtr>> current_recovery_behaviors_;
       boost::shared_ptr<std::vector<BehPtr>> recovery_behaviors_;
       boost::shared_ptr<std::vector<BehPtr>> recovery_behaviors_carrying_;
+      std::vector<std::string> recovery_behavior_names_;
+      std::vector<std::string> recovery_behavior_names_carrying_;
+      bool is_carrying_;
+      
       unsigned int recovery_index_;
       bool recovery_flag_ = false;
       bool frequent_recovery_motion_ = true;
@@ -244,12 +246,15 @@ namespace move_base {
       int32_t max_planning_retries_;
       uint32_t planning_retries_;
       double conservative_reset_dist_, clearing_radius_, max_sim_time_, min_occdist_scale_;
-      ros::Publisher current_goal_pub_, vel_pub_, action_goal_pub_, amr_status_pub_, virtual_obstacle_enabled_pub_, dist_to_current_goal_pub_;
+      ros::Publisher current_goal_pub_, vel_pub_, action_goal_pub_, recovery_status_pub_;
+      ros::Publisher amr_status_pub_, virtual_obstacle_enabled_pub_, dist_to_current_goal_pub_;
       ros::Subscriber goal_sub_, carrying_status_sub_, carrying_info_sub_, action_goal_sub_;
       ros::ServiceServer make_plan_srv_, clear_costmaps_srv_;
       bool shutdown_costmaps_, clearing_rotation_allowed_, recovery_behavior_enabled_, backward_recovery_allowed_, abort_after_recovery_allowed_;
       bool remove_virtual_obstacle_recovery_allowed_;
       bool conservative_clearing_map_allowed_, aggressive_clearing_map_allowed_;
+      bool make_plan_clear_costmap_, make_plan_add_unreachable_goal_;
+
       double oscillation_timeout_, oscillation_distance_;
       double rotate_small_angle_;
 

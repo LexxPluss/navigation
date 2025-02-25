@@ -32,6 +32,11 @@ generate_dynamic_reconfigure_options(
 )
 
 catkin_package(
+
+    INCLUDE_DIRS
+        include
+        ${EIGEN3_INCLUDE_DIRS}
+    LIBRARIES move_base
     CATKIN_DEPENDS
         dynamic_reconfigure
         geometry_msgs
@@ -67,11 +72,14 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
 
 install(
     TARGETS
-        move_base
         move_base_node
-    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(
+    TARGETS
+        move_base
+    DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 
 ## Mark cpp header files for installation
