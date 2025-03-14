@@ -5,7 +5,7 @@
 #include <angles/angles.h>
 #include <vector>
 
-lexxauto_msgs::safety_status safety_status_;
+lexxauto_msgs::SafetyStatus safety_status_;
 float front_lidar_distance_;
 float front_left_lidar_distance_;
 float left_lidar_distance_;
@@ -15,7 +15,7 @@ float rear_right_lidar_distance_;
 float right_lidar_distance_;
 float front_right_lidar_distance_;
 
-void safetyStatusCallback(const lexxauto_msgs::safety_status::ConstPtr& msg)
+void safetyStatusCallback(const lexxauto_msgs::SafetyStatus::ConstPtr& msg)
 {
   safety_status_ = *msg;
 }

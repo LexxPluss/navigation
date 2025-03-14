@@ -7,7 +7,7 @@
 #include <base_local_planner/costmap_model.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/PoseStamped.h>
-#include <lexxauto_msgs/safety_status.h>
+#include <lexxauto_msgs/SafetyStatus.h>
 #include <std_msgs/Float32.h>
 
 namespace safety_direction_recovery
