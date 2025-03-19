@@ -1315,7 +1315,7 @@ namespace move_base {
     XmlRpc::XmlRpcValue behavior_list;
     if (!node.getParam("recovery_behaviors", behavior_list))
     {
-      ROS_ERROR_STREAM("Failed to get 'recovery_behaviors' parameter.");
+      ROS_WARN_STREAM("Failed to get 'recovery_behaviors' parameter.");
       return false;
     }
 
