@@ -1052,6 +1052,7 @@ namespace move_base {
 
         //check to see if we've reached our goal
         if(tc_->isGoalReached()){
+          clearCostmaps();
           ROS_DEBUG_NAMED("move_base","Goal reached!");
           resetState();
 
