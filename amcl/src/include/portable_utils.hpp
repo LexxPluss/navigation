@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#ifndef HAVE_DRAND48
+#if defined(_WIN32) || defined(_WIN64)
 // Some system (e.g., Windows) doesn't come with drand48(), srand48().
 // Use rand, and srand for such system.
 static double drand48(void)
@@ -19,7 +19,7 @@ static void srand48(long int seedval)
 {
     srand(seedval);
 }
-#endif
+#endif  // _WIN32 || _WIN64
 
 #ifdef __cplusplus
 }
