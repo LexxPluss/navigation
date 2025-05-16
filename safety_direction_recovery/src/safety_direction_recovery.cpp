@@ -112,7 +112,7 @@ PLUGINLIB_EXPORT_CLASS(safety_direction_recovery::SafetyDirectionRecovery, nav_c
 
         ros::NodeHandle nh;
         //ros::Subscriber safety_status_sub =
-        //  nh.subscribe<lexxauto_msgs::safety_status>("safety_status", 1, safetyStatusCallback);
+        //  nh.subscribe<lexxauto_msgs::SafetyStatus>("safety_status", 1, safetyStatusCallback);
         front_lidar_distance_sub_ =
           nh.subscribe<std_msgs::Float32>("front_lidar_distance", 1, frontLidarDistanceCallback);
         front_left_lidar_distance_sub_ =
