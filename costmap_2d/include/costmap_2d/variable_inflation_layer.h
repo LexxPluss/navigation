@@ -111,9 +111,9 @@ public:
     unsigned char cost = 0;
     if (distance == 0)
       cost = LETHAL_OBSTACLE;
-    else if (distance * resolution_ <= inscribed_radius_ + impassable_margin_)
+    else if (!local_costmap_ && distance * resolution_ <= inscribed_radius_ + impassable_margin_)
       cost = INSCRIBED_INFLATED_OBSTACLE;
-    else if (distance * resolution_ <= inscribed_radius_ + impassable_margin_ + path_avoidance_margin_)
+    else if (!local_costmap_ && distance * resolution_ <= inscribed_radius_ + impassable_margin_ + path_avoidance_margin_)
       cost = INSCRIBED_INFLATED_OBSTACLE - 1;
     else
     {
