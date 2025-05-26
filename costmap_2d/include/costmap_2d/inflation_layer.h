@@ -106,9 +106,9 @@ public:
     unsigned char cost = 0;
     if (distance == 0)
       cost = LETHAL_OBSTACLE;
-    else if (distance * resolution_ <= inscribed_radius_ + impassable_margin_)
+    else if (!local_costmap_ && distance * resolution_ <= inscribed_radius_ + impassable_margin_)
       cost = INSCRIBED_INFLATED_OBSTACLE;
-    else if (distance * resolution_ <= inscribed_radius_ + impassable_margin_ + path_avoidance_margin_)
+    else if (!local_costmap_ && distance * resolution_ <= inscribed_radius_ + impassable_margin_ + path_avoidance_margin_)
       cost = INSCRIBED_INFLATED_OBSTACLE - 1;
     else
     {
@@ -126,9 +126,11 @@ public:
    * @param cost_scaling_factor The new weight
    * @param impassable_margin The margin to apply to no entry cost values.
    * @param path_avoidance_margin The margin to apply to path distance when avoiding obstacles.
+   * @param local_costmap Whether to use it for local cost mapping
    */
   void setInflationParameters(double inflation_radius, double cost_scaling_factor,
-                              double impassable_margin, double path_avoidance_margin);
+                              double impassable_margin, double path_avoidance_margin,
+                              bool local_costmap);
 
 protected:
   virtual void onFootprintChanged();
@@ -140,6 +142,7 @@ protected:
   double path_avoidance_margin_;
   double impassable_margin_;
   double weight_;
+  bool local_costmap_;
   bool inflate_unknown_;
 
 private:

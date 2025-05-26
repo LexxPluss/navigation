@@ -135,6 +135,7 @@ public:
    * @param max_inflation_vel The maximum velocity to activate variable inflation
    * @param impassable_margin The margin to apply to no entry cost values.
    * @param path_avoidance_margin The margin to apply to path distance when avoiding obstacles.
+   * @param local_costmap Whether to use it for local cost mapping
    */
   void setInflationParameters(double inflation_radius,
                               double cost_scaling_factor,
@@ -143,7 +144,8 @@ public:
                               double min_inflation_vel,
                               double max_inflation_vel,
                               double impassable_margin,
-                              double path_avoidance_margin);
+                              double path_avoidance_margin,
+                              bool local_costmap);
 
 protected:
   virtual void onFootprintChanged();
@@ -161,6 +163,7 @@ protected:
   double max_inflation_vel_ = 0.6;
   double path_avoidance_margin_;
   double impassable_margin_;
+  bool local_costmap_;
 
 private:
   /**
