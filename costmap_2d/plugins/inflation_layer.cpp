@@ -107,7 +107,7 @@ void InflationLayer::reconfigureCB(costmap_2d::InflationPluginConfig &config, ui
     config.cost_scaling_factor,
     config.path_avoidance_margin,
     config.impassable_margin,
-    config.local_costmap);
+    config.disable_inscribed_inflated_obstacle);
 
   if (enabled_ != config.enabled || inflate_unknown_ != config.inflate_unknown) {
     enabled_ = config.enabled;
@@ -374,11 +374,11 @@ void InflationLayer::deleteKernels()
 
 void InflationLayer::setInflationParameters(double inflation_radius, double cost_scaling_factor,
                                             double path_avoidance_margin, double impassable_margin,
-                                            bool local_costmap)
+                                            bool disable_inscribed_inflated_obstacle)
 {
   if (weight_ != cost_scaling_factor || inflation_radius_ != inflation_radius ||
       path_avoidance_margin_ != path_avoidance_margin || impassable_margin_ != impassable_margin ||
-      local_costmap_ != local_costmap)
+      disable_inscribed_inflated_obstacle_ != disable_inscribed_inflated_obstacle)
   {
     // Lock here so that reconfiguring the inflation radius doesn't cause segfaults
     // when accessing the cached arrays
@@ -389,7 +389,7 @@ void InflationLayer::setInflationParameters(double inflation_radius, double cost
     weight_ = cost_scaling_factor;
     path_avoidance_margin_ = path_avoidance_margin;
     impassable_margin_ = impassable_margin;
-    local_costmap_ = local_costmap;
+    disable_inscribed_inflated_obstacle_ = disable_inscribed_inflated_obstacle;
     need_reinflation_ = true;
     computeCaches();
   }

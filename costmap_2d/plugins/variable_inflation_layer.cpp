@@ -116,7 +116,7 @@ void VariableInflationLayer::reconfigureCB(costmap_2d::VariableInflationPluginCo
                          config.min_inflation_radius, config.max_inflation_radius,
                          config.min_inflation_vel, config.max_inflation_vel,
                          config.impassable_margin, config.path_avoidance_margin,
-                         config.local_costmap);
+                         config.disable_inscribed_inflated_obstacle);
 
   if (enabled_ != config.enabled || inflate_unknown_ != config.inflate_unknown) {
     enabled_ = config.enabled;
@@ -226,7 +226,7 @@ void VariableInflationLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int
                          min_inflation_radius_, max_inflation_radius_,
                          min_inflation_vel_, max_inflation_vel_,
                          impassable_margin_, path_avoidance_margin_,
-                         local_costmap_);
+                         disable_inscribed_inflated_obstacle_);
 
   if (!enabled_ || (cell_inflation_radius_ == 0))
     return;
@@ -427,13 +427,13 @@ void VariableInflationLayer::setInflationParameters(double inflation_radius,
                                                     double max_inflation_vel,
                                                     double impassable_margin,
                                                     double path_avoidance_margin,
-                                                    bool local_costmap)
+                                                    bool disable_inscribed_inflated_obstacle)
 {
   if (weight_ != cost_scaling_factor || inflation_radius_ != inflation_radius ||
       min_inflation_radius_ != min_inflation_radius || max_inflation_radius_ != max_inflation_radius ||
       min_inflation_vel_ != min_inflation_vel || max_inflation_vel_ != max_inflation_vel ||
       impassable_margin_ != impassable_margin || path_avoidance_margin_ != path_avoidance_margin ||
-      local_costmap_ != local_costmap)
+      disable_inscribed_inflated_obstacle_ != disable_inscribed_inflated_obstacle)
   {
     // Lock here so that reconfiguring the inflation radius doesn't cause segfaults
     // when accessing the cached arrays
@@ -449,7 +449,7 @@ void VariableInflationLayer::setInflationParameters(double inflation_radius,
     max_inflation_vel_ = max_inflation_vel;
     path_avoidance_margin_ = path_avoidance_margin;
     impassable_margin_ = impassable_margin;
-    local_costmap_ = local_costmap;
+    disable_inscribed_inflated_obstacle_ = disable_inscribed_inflated_obstacle;
     need_reinflation_ = true;
     computeCaches();
   }
