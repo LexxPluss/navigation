@@ -109,6 +109,8 @@ namespace move_base {
     private_nh.param("make_plan_clear_costmap", make_plan_clear_costmap_, true);
     private_nh.param("make_plan_add_unreachable_goal", make_plan_add_unreachable_goal_, true);
 
+    private_nh.param("check_plan_validity", check_plan_validity_, true);
+
     //set up plan triple buffer
     planner_plan_ = new std::vector<geometry_msgs::PoseStamped>();
     latest_plan_ = new std::vector<geometry_msgs::PoseStamped>();
@@ -699,16 +701,14 @@ namespace move_base {
       //run planner
       planner_plan_->clear();
       bool gotPlan = n.ok() && makePlan(temp_goal, *planner_plan_);
-      if(gotPlan){
+      if(check_plan_validity_ && gotPlan){
         lock.lock();
-        //check if the plan we made is still valid
-        //make plan can take some time
-        if(fabs(temp_goal.pose.position.x - planner_goal_.pose.position.x) > std::numeric_limits<float>::epsilon() ||
+        //  make plan can take some time so check if the plan we made is still for the current goal
+        if  (fabs(temp_goal.pose.position.x - planner_goal_.pose.position.x) > std::numeric_limits<float>::epsilon() ||
             fabs(temp_goal.pose.position.y - planner_goal_.pose.position.y) > std::numeric_limits<float>::epsilon())
         {
-          ROS_INFO("Cancel goal planning");
+          ROS_INFO("The goal changed while we where planning skipping plan");
           gotPlan = false;
-
         }
         lock.unlock();
       }
