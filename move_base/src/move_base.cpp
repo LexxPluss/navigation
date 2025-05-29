@@ -699,7 +699,19 @@ namespace move_base {
       //run planner
       planner_plan_->clear();
       bool gotPlan = n.ok() && makePlan(temp_goal, *planner_plan_);
+      if(gotPlan){
+        lock.lock();
+        //check if the plan we made is still valid
+        //make plan can take some time
+        if(fabs(temp_goal.pose.position.x - planner_goal_.pose.position.x) > std::numeric_limits<float>::epsilon() ||
+            fabs(temp_goal.pose.position.y - planner_goal_.pose.position.y) > std::numeric_limits<float>::epsilon())
+        {
+          ROS_INFO("Cancel goal planning");
+          gotPlan = false;
 
+        }
+        lock.unlock();
+      }
       if(gotPlan){
         ROS_DEBUG_NAMED("move_base_plan_thread","Got Plan with %zu points!", planner_plan_->size());
 
