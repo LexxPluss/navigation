@@ -105,11 +105,10 @@ namespace move_base {
     private_nh.param("detect_motion_abs_wz", detect_motion_abs_wz_, 5 * M_PI / 180);
 
     private_nh.param("new_global_plan_delay_sec", new_global_plan_delay_sec_, 0.0);
+    private_nh.param("check_plan_validity", check_plan_validity_, true);
     // parameters of make_plan service
     private_nh.param("make_plan_clear_costmap", make_plan_clear_costmap_, true);
     private_nh.param("make_plan_add_unreachable_goal", make_plan_add_unreachable_goal_, true);
-
-    private_nh.param("check_plan_validity", check_plan_validity_, true);
 
     //set up plan triple buffer
     planner_plan_ = new std::vector<geometry_msgs::PoseStamped>();
@@ -707,7 +706,7 @@ namespace move_base {
         if  (fabs(temp_goal.pose.position.x - planner_goal_.pose.position.x) > std::numeric_limits<float>::epsilon() ||
             fabs(temp_goal.pose.position.y - planner_goal_.pose.position.y) > std::numeric_limits<float>::epsilon())
         {
-          ROS_INFO("The goal changed while we where planning skipping plan");
+          ROS_INFO("The goal changed while we were planning: skipping plan");
           gotPlan = false;
         }
         lock.unlock();
