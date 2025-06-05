@@ -707,7 +707,7 @@ namespace move_base {
         if  (fabs(temp_goal.pose.position.x - planner_goal_.pose.position.x) > std::numeric_limits<float>::epsilon() ||
             fabs(temp_goal.pose.position.y - planner_goal_.pose.position.y) > std::numeric_limits<float>::epsilon())
         {
-          ROS_INFO("The goal changed while we where planning skipping plan");
+          ROS_INFO("The goal changed while we were planning: skipping plan");
           gotPlan = false;
         }
         lock.unlock();
