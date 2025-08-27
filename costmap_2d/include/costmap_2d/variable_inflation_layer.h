@@ -178,6 +178,17 @@ private:
   {
     unsigned int dx = abs(mx - src_x);
     unsigned int dy = abs(my - src_y);
+
+    if (cached_distances_ == NULL || dx > cell_inflation_radius_ + 1 || dy > cell_inflation_radius_ + 1)
+    {
+      // This array bounds violation should not normally occur since the mutex issue
+      // has been fixed. This log output serves as a failsafe fallback.
+      ROS_ERROR_THROTTLE(5.0, "VariableInflationLayer::distanceLookup(): Array bounds exceeded. "
+                         "dx=%u, dy=%u, max_allowed=%u, src_x=%d, src_y=%d, mx=%d, my=%d",
+                         dx, dy, cell_inflation_radius_ + 1, src_x, src_y, mx, my);
+      return cell_inflation_radius_ + 1;
+    }
+
     return cached_distances_[dx][dy];
   }
 
@@ -193,6 +204,17 @@ private:
   {
     unsigned int dx = abs(mx - src_x);
     unsigned int dy = abs(my - src_y);
+
+    if (cached_costs_ == NULL || dx > cell_inflation_radius_ + 1 || dy > cell_inflation_radius_ + 1)
+    {
+      // This array bounds violation should not normally occur since the mutex issue
+      // has been fixed. This log output serves as a failsafe fallback.
+      ROS_ERROR_THROTTLE(5.0, "VariableInflationLayer::costLookup(): Array bounds exceeded. "
+                         "dx=%u, dy=%u, max_allowed=%u, src_x=%d, src_y=%d, mx=%d, my=%d",
+                         dx, dy, cell_inflation_radius_ + 1, src_x, src_y, mx, my);
+      return 0;
+    }
+
     return cached_costs_[dx][dy];
   }
 
