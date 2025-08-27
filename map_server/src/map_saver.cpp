@@ -65,7 +65,7 @@ class MapGenerator
       FILE* out = fopen(mapdatafile.c_str(), "w");
       if (!out)
       {
-        ROS_ERROR("Couldn't save map file to %s", mapdatafile.c_str());
+        ROS_WARN("Couldn't save map file to %s", mapdatafile.c_str());
         return;
       }
 
@@ -164,7 +164,7 @@ int main(int argc, char** argv)
         threshold_occupied = std::atoi(argv[i]);
         if (threshold_occupied < 1 || threshold_occupied > 100)
         {
-          ROS_ERROR("threshold_occupied must be between 1 and 100");
+          ROS_WARN("threshold_occupied must be between 1 and 100");
           return 1;
         }
 
@@ -182,7 +182,7 @@ int main(int argc, char** argv)
         threshold_free = std::atoi(argv[i]);
         if (threshold_free < 0 || threshold_free > 100)
         {
-          ROS_ERROR("threshold_free must be between 0 and 100");
+          ROS_WARN("threshold_free must be between 0 and 100");
           return 1;
         }
 
@@ -202,7 +202,7 @@ int main(int argc, char** argv)
 
   if (threshold_occupied <= threshold_free)
   {
-    ROS_ERROR("threshold_free must be smaller than threshold_occupied");
+    ROS_WARN("threshold_free must be smaller than threshold_occupied");
     return 1;
   }
 

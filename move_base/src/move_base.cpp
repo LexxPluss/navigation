@@ -448,12 +448,12 @@ namespace move_base {
 
   bool MoveBase::planService(nav_msgs::GetPlan::Request &req, nav_msgs::GetPlan::Response &resp){
     if(as_->isActive()){
-      ROS_ERROR("move_base must be in an inactive state to make a plan for an external user");
+      ROS_WARN("move_base must be in an inactive state to make a plan for an external user");
       return false;
     }
     //make sure we have a costmap for our planner
     if(planner_costmap_ros_ == NULL){
-      ROS_ERROR("move_base cannot make a plan for you because it doesn't have a costmap");
+      ROS_WARN("move_base cannot make a plan for you because it doesn't have a costmap");
       return false;
     }
 
@@ -463,7 +463,7 @@ namespace move_base {
     {
         geometry_msgs::PoseStamped global_pose;
         if(!getRobotPose(global_pose, planner_costmap_ros_)){
-          ROS_ERROR("move_base cannot make a plan for you because it could not get the start pose of the robot");
+          ROS_WARN("move_base cannot make a plan for you because it could not get the start pose of the robot");
           return false;
         }
         start = global_pose;
@@ -579,7 +579,7 @@ namespace move_base {
 
     //since this gets called on handle activate
     if(planner_costmap_ros_ == NULL) {
-      ROS_ERROR("Planner costmap ROS is NULL, unable to create global plan");
+      ROS_WARN("Planner costmap ROS is NULL, unable to create global plan");
       return false;
     }
 
@@ -612,7 +612,7 @@ namespace move_base {
   bool MoveBase::isQuaternionValid(const geometry_msgs::Quaternion& q){
     //first we need to check if the quaternion has nan's or infs
     if(!std::isfinite(q.x) || !std::isfinite(q.y) || !std::isfinite(q.z) || !std::isfinite(q.w)){
-      ROS_ERROR("Quaternion has nans or infs... discarding as a navigation goal");
+      ROS_WARN("Quaternion has nans or infs... discarding as a navigation goal");
       return false;
     }
 
@@ -620,7 +620,7 @@ namespace move_base {
 
     //next, we need to check if the length of the quaternion is close to zero
     if(tf_q.length2() < 1e-6){
-      ROS_ERROR("Quaternion has length close to zero... discarding as navigation goal");
+      ROS_WARN("Quaternion has length close to zero... discarding as navigation goal");
       return false;
     }
 
@@ -632,7 +632,7 @@ namespace move_base {
     double dot = up.dot(up.rotate(tf_q.getAxis(), tf_q.getAngle()));
 
     if(fabs(dot - 1) > 1e-3){
-      ROS_ERROR("Quaternion is invalid... for navigation the z-axis of the quaternion must be close to vertical.");
+      ROS_WARN("Quaternion is invalid... for navigation the z-axis of the quaternion must be close to vertical.");
       return false;
     }
 
@@ -1017,7 +1017,7 @@ namespace move_base {
 
       if(!tc_->setPlan(*controller_plan_)){
         //ABORT and SHUTDOWN COSTMAPS
-        ROS_ERROR("Failed to pass global plan to the controller, aborting.");
+        ROS_WARN("Failed to pass global plan to the controller, aborting.");
         resetState();
 
         //disable the planner thread
@@ -1209,11 +1209,11 @@ namespace move_base {
 
           if(recovery_trigger_ == CONTROLLING_R || recovery_trigger_ == PLANNING_R || recovery_trigger_ == OSCILLATION_R || recovery_trigger_ == MOTION_STUCK_R){
             if(abort_after_recovery_allowed_){
-              ROS_ERROR("Aborting because a valid control could not be found. Even after executing all recovery behaviors");
+              ROS_WARN("Aborting because a valid control could not be found. Even after executing all recovery behaviors");
               as_->setAborted(move_base_msgs::MoveBaseResult(), "Failed to find a valid control. Even after executing recovery behaviors.");
             }
             else{
-              ROS_ERROR("Aborting because a valid control could not be found. Even after executing all recovery behaviors. Wait for next command.");
+              ROS_WARN("Aborting because a valid control could not be found. Even after executing all recovery behaviors. Wait for next command.");
               as_->setSucceeded(move_base_msgs::MoveBaseResult(), "Failed to find a valid control. Even after executing recovery behaviors. Wait for next command.");
             }
           }
@@ -1224,7 +1224,7 @@ namespace move_base {
       default:
         amr_status_msg_.data = "ERROR";
         amr_status_pub_.publish(amr_status_msg_);
-        ROS_ERROR("This case should never be reached, something is wrong, aborting");
+        ROS_WARN("This case should never be reached, something is wrong, aborting");
         resetState();
         //disable the planner thread
         boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
@@ -1266,7 +1266,7 @@ namespace move_base {
     {
       if (behavior_list[idx].getType() != XmlRpc::XmlRpcValue::TypeStruct)
       {
-        ROS_ERROR("Each recovery behavior must be a struct.");
+        ROS_WARN("Each recovery behavior must be a struct.");
         continue;
       }
 
@@ -1296,7 +1296,7 @@ namespace move_base {
       {
         if (depth == 0)
         {
-          ROS_ERROR("Mismatched 'loop_end' without corresponding 'loop_start'.");
+          ROS_WARN("Mismatched 'loop_end' without corresponding 'loop_start'.");
           return false;
         }
         return true;
@@ -1316,7 +1316,7 @@ namespace move_base {
 
     if (0 < depth)
     {
-      ROS_ERROR("Mismatched 'loop_start' without corresponding 'loop_end'.");
+      ROS_WARN("Mismatched 'loop_start' without corresponding 'loop_end'.");
       return false;
     }
     return true;
@@ -1332,20 +1332,20 @@ namespace move_base {
 
     if (behavior_list.getType() != XmlRpc::XmlRpcValue::TypeArray)
     {
-      ROS_ERROR_STREAM("Recovery behaviors should be specified as a list.");
+      ROS_WARN_STREAM("Recovery behaviors should be specified as a list.");
       return false;
     }
 
     XmlRpc::XmlRpcValue behavior_list_carrying;
     if (!node.getParam("recovery_behaviors_carrying", behavior_list_carrying))
     {
-      ROS_ERROR_STREAM("Failed to get 'recovery_behaviors_carrying' parameter.");
+      ROS_WARN_STREAM("Failed to get 'recovery_behaviors_carrying' parameter.");
       return false;
     }
 
     if (behavior_list_carrying.getType() != XmlRpc::XmlRpcValue::TypeArray)
     {
-      ROS_ERROR_STREAM("Recovery behaviors should be specified as a list.");
+      ROS_WARN_STREAM("Recovery behaviors should be specified as a list.");
       return false;
     }
 
@@ -1480,17 +1480,17 @@ namespace move_base {
     }
     catch (tf2::LookupException& ex)
     {
-      ROS_ERROR_THROTTLE(1.0, "No Transform available Error looking up robot pose: %s\n", ex.what());
+      ROS_WARN_THROTTLE(1.0, "No Transform available Error looking up robot pose: %s\n", ex.what());
       return false;
     }
     catch (tf2::ConnectivityException& ex)
     {
-      ROS_ERROR_THROTTLE(1.0, "Connectivity Error looking up robot pose: %s\n", ex.what());
+      ROS_WARN_THROTTLE(1.0, "Connectivity Error looking up robot pose: %s\n", ex.what());
       return false;
     }
     catch (tf2::ExtrapolationException& ex)
     {
-      ROS_ERROR_THROTTLE(1.0, "Extrapolation Error looking up robot pose: %s\n", ex.what());
+      ROS_WARN_THROTTLE(1.0, "Extrapolation Error looking up robot pose: %s\n", ex.what());
       return false;
     }
 

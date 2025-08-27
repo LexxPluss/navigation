@@ -311,7 +311,7 @@ void ObstacleLayer::pointCloudCallback(const sensor_msgs::PointCloudConstPtr& me
 
   if (!sensor_msgs::convertPointCloudToPointCloud2(*message, cloud2))
   {
-    ROS_ERROR("Failed to convert a PointCloud to a PointCloud2, dropping message");
+    ROS_WARN("Failed to convert a PointCloud to a PointCloud2, dropping message");
     return;
   }
 

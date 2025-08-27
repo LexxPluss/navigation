@@ -132,7 +132,7 @@ PLUGINLIB_EXPORT_CLASS(safety_direction_recovery::SafetyDirectionRecovery, nav_c
       }
       else
       {
-        ROS_ERROR("You should not call initialize twice on this object, doing nothing");
+        ROS_WARN("You should not call initialize twice on this object, doing nothing");
       }
     }
 
@@ -167,13 +167,13 @@ PLUGINLIB_EXPORT_CLASS(safety_direction_recovery::SafetyDirectionRecovery, nav_c
 
       if(!initialized_)
       {
-        ROS_ERROR("This object must be initialized before runBehavior is called");
+        ROS_WARN("This object must be initialized before runBehavior is called");
         return;
       }
 
       if(local_costmap_ == NULL || global_costmap_ == NULL)
       {
-        ROS_ERROR("The costmap passed to the SafetyDirectionRecovery object cannnot be NULL. Doing nothing.");
+        ROS_WARN("The costmap passed to the SafetyDirectionRecovery object cannnot be NULL. Doing nothing.");
         return;
       }
 
@@ -185,7 +185,7 @@ PLUGINLIB_EXPORT_CLASS(safety_direction_recovery::SafetyDirectionRecovery, nav_c
       if(is_inside_unmovable_area())
       {
         stop();
-        ROS_ERROR("The robot is inside unmovable area.");
+        ROS_WARN("The robot is inside unmovable area.");
         return;
       }
 
@@ -318,7 +318,7 @@ PLUGINLIB_EXPORT_CLASS(safety_direction_recovery::SafetyDirectionRecovery, nav_c
       }
       else
       {
-        ROS_ERROR("Input angle error: best_attitude: %f [rad].", best_attitude);
+        ROS_WARN("Input angle error: best_attitude: %f [rad].", best_attitude);
         return;
       }
 
@@ -507,7 +507,7 @@ PLUGINLIB_EXPORT_CLASS(safety_direction_recovery::SafetyDirectionRecovery, nav_c
               global_footprint_cost == costmap_2d::LETHAL_OBSTACLE ||
               global_footprint_cost == costmap_2d::NO_INFORMATION)
           {
-            ROS_ERROR("[safety_direction_recovery] the robot is going to unmovable area or obstacles.");
+            ROS_WARN("[safety_direction_recovery] the robot is going to unmovable area or obstacles.");
             stop();
 
             ROS_INFO("The robot travelled  %f.\n", dist_travelled);
@@ -610,7 +610,7 @@ PLUGINLIB_EXPORT_CLASS(safety_direction_recovery::SafetyDirectionRecovery, nav_c
           double footprint_cost = local_world_model_->footprintCost(x, y, theta, local_costmap_->getRobotFootprint(), 0.0, 0.0);
           if (footprint_cost < 0.0)
           {
-            ROS_ERROR("Rotate recovery can't rotate in place because there is a potential collision. Cost: %.2f",
+            ROS_WARN("Rotate recovery can't rotate in place because there is a potential collision. Cost: %.2f",
                        footprint_cost);
             return M_PI/2.0f - angle_left;
           }

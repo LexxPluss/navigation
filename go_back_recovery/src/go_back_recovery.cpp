@@ -36,7 +36,7 @@ void GoBackRecovery::initialize(std::string name, tf2_ros::Buffer*,
     }
     else
     {
-        ROS_ERROR("You should not call initialize twice on this object, doing nothing");
+        ROS_WARN("You should not call initialize twice on this object, doing nothing");
     }
 }
 
@@ -56,12 +56,12 @@ void GoBackRecovery::runBehavior()
 
     if(!initialized_)
     {
-        ROS_ERROR("This object must be initialized before runBehavior is called");
+        ROS_WARN("This object must be initialized before runBehavior is called");
     }
 
     if(local_costmap_ == NULL)
     {
-        ROS_ERROR("The costmap passed to the GoBackRecovery object cannnot be NULL. Doing nothing.");
+        ROS_WARN("The costmap passed to the GoBackRecovery object cannnot be NULL. Doing nothing.");
         return;
     }
     ROS_WARN("Robot will start moving backwards.");
@@ -99,7 +99,7 @@ void GoBackRecovery::runBehavior()
             double footprint_cost = world_model_->footprintCost(sim_x, sim_y, current_angle, local_costmap_->getRobotFootprint(), inscribed_radius_, circumscribed_radius_);
             if(footprint_cost < 0.0)
             {
-                ROS_ERROR("Go back recovery can't be conducted because there is a potential collision. Cost: %.2f", footprint_cost);
+                ROS_WARN("Go back recovery can't be conducted because there is a potential collision. Cost: %.2f", footprint_cost);
                 cmd_vel.linear.x = 0.0;
                 cmd_vel.linear.y = 0.0;
                 cmd_vel.angular.z = 0.0;

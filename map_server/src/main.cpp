@@ -147,7 +147,7 @@ class MapServer
                                     resolution, negate, occ_th, free_th,
                                     origin, mode);
       } catch (std::runtime_error& e) {
-        ROS_ERROR("%s", e.what());
+        ROS_WARN("%s", e.what());
         return false;
       }
 
@@ -197,7 +197,7 @@ class MapServer
       double origin[3];
       std::ifstream fin(path_to_yaml.c_str());
       if (fin.fail()) {
-        ROS_ERROR("Map_server could not open %s.", path_to_yaml.c_str());
+        ROS_WARN("Map_server could not open %s.", path_to_yaml.c_str());
         return false;
       }
 #ifdef HAVE_YAMLCPP_GT_0_5_0
@@ -211,25 +211,25 @@ class MapServer
       try {
         doc["resolution"] >> res;
       } catch (YAML::InvalidScalar &) {
-        ROS_ERROR("The map does not contain a resolution tag or it is invalid.");
+        ROS_WARN("The map does not contain a resolution tag or it is invalid.");
         return false;
       }
       try {
         doc["negate"] >> negate;
       } catch (YAML::InvalidScalar &) {
-        ROS_ERROR("The map does not contain a negate tag or it is invalid.");
+        ROS_WARN("The map does not contain a negate tag or it is invalid.");
         return false;
       }
       try {
         doc["occupied_thresh"] >> occ_th;
       } catch (YAML::InvalidScalar &) {
-        ROS_ERROR("The map does not contain an occupied_thresh tag or it is invalid.");
+        ROS_WARN("The map does not contain an occupied_thresh tag or it is invalid.");
         return false;
       }
       try {
         doc["free_thresh"] >> free_th;
       } catch (YAML::InvalidScalar &) {
-        ROS_ERROR("The map does not contain a free_thresh tag or it is invalid.");
+        ROS_WARN("The map does not contain a free_thresh tag or it is invalid.");
         return false;
       }
       try {
@@ -243,7 +243,7 @@ class MapServer
         else if(modeS=="raw")
           mode = RAW;
         else{
-          ROS_ERROR("Invalid mode tag \"%s\".", modeS.c_str());
+          ROS_WARN("Invalid mode tag \"%s\".", modeS.c_str());
           return false;
         }
       } catch (YAML::Exception &) {
@@ -255,7 +255,7 @@ class MapServer
         doc["origin"][1] >> origin[1];
         doc["origin"][2] >> origin[2];
       } catch (YAML::InvalidScalar &) {
-        ROS_ERROR("The map does not contain an origin tag or it is invalid.");
+        ROS_WARN("The map does not contain an origin tag or it is invalid.");
         return false;
       }
       try {
@@ -263,7 +263,7 @@ class MapServer
         // TODO: make this path-handling more robust
         if(mapfname.size() == 0)
         {
-          ROS_ERROR("The image tag cannot be an empty string.");
+          ROS_WARN("The image tag cannot be an empty string.");
           return false;
         }
 
@@ -276,7 +276,7 @@ class MapServer
           mapfname = mapfpath.string();
         }
       } catch (YAML::InvalidScalar &) {
-        ROS_ERROR("The map does not contain an image tag or it is invalid.");
+        ROS_WARN("The map does not contain an image tag or it is invalid.");
         return false;
       }
       return loadMapFromValues(mapfname, res, negate, occ_th, free_th, origin, mode);
@@ -302,7 +302,7 @@ int main(int argc, char **argv)
   ros::NodeHandle nh("~");
   if(argc != 3 && argc != 2)
   {
-    ROS_ERROR("%s", USAGE);
+    ROS_WARN("%s", USAGE);
     exit(-1);
   }
   if (argc != 2) {
@@ -318,7 +318,7 @@ int main(int argc, char **argv)
   }
   catch(std::runtime_error& e)
   {
-    ROS_ERROR("map_server exception: %s", e.what());
+    ROS_WARN("map_server exception: %s", e.what());
     return -1;
   }
 

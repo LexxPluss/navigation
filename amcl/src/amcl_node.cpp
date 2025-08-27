@@ -1324,7 +1324,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
     }
     catch(tf2::TransformException& e)
     {
-      ROS_ERROR("Couldn't transform from %s to %s, "
+      ROS_WARN("Couldn't transform from %s to %s, "
                 "even though the message notifier is in use",
                 laser_scan_frame_id.c_str(),
                 base_frame_id_.c_str());
@@ -1353,7 +1353,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
   if(!getOdomPose(latest_odom_pose_, pose.v[0], pose.v[1], pose.v[2],
                   laser_scan->header.stamp, base_frame_id_))
   {
-    ROS_ERROR("Couldn't determine robot's pose associated with laser scan");
+    ROS_WARN("Couldn't determine robot's pose associated with laser scan");
     return;
   }
 
@@ -1472,7 +1472,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       range_min = laser_scan->range_min;
 
     if(ldata.range_max <= 0.0 || range_min < 0.0) {
-      ROS_ERROR("range_max or range_min from laser is negative! ignore this message.");
+      ROS_WARN("range_max or range_min from laser is negative! ignore this message.");
       return; // ignore this.
     }
 
@@ -1552,7 +1552,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
       pf_matrix_t pose_cov;
       if (!pf_get_cluster_stats(pf_, hyp_count, &weight, &pose_mean, &pose_cov))
       {
-        ROS_ERROR("Couldn't get stats on cluster %d", hyp_count);
+        ROS_WARN("Couldn't get stats on cluster %d", hyp_count);
         break;
       }
 
@@ -1827,7 +1827,7 @@ AmclNode::laserReceived(const sensor_msgs::LaserScanConstPtr& laser_scan)
     }
     else
     {
-      ROS_ERROR("No pose!");
+      ROS_WARN("No pose!");
     }
   }
   else if(latest_tf_valid_)

@@ -99,7 +99,7 @@ namespace navfn {
 
   bool NavfnROS::validPointPotential(const geometry_msgs::Point& world_point, double tolerance){
     if(!initialized_){
-      ROS_ERROR("This planner has not been initialized yet, but it is being used, please call initialize() before use");
+      ROS_WARN("This planner has not been initialized yet, but it is being used, please call initialize() before use");
       return false;
     }
 
@@ -126,7 +126,7 @@ namespace navfn {
 
   double NavfnROS::getPointPotential(const geometry_msgs::Point& world_point){
     if(!initialized_){
-      ROS_ERROR("This planner has not been initialized yet, but it is being used, please call initialize() before use");
+      ROS_WARN("This planner has not been initialized yet, but it is being used, please call initialize() before use");
       return -1.0;
     }
 
@@ -140,7 +140,7 @@ namespace navfn {
 
   bool NavfnROS::computePotential(const geometry_msgs::Point& world_point){
     if(!initialized_){
-      ROS_ERROR("This planner has not been initialized yet, but it is being used, please call initialize() before use");
+      ROS_WARN("This planner has not been initialized yet, but it is being used, please call initialize() before use");
       return false;
     }
 
@@ -168,7 +168,7 @@ namespace navfn {
 
   void NavfnROS::clearRobotCell(const geometry_msgs::PoseStamped& global_pose, unsigned int mx, unsigned int my){
     if(!initialized_){
-      ROS_ERROR("This planner has not been initialized yet, but it is being used, please call initialize() before use");
+      ROS_WARN("This planner has not been initialized yet, but it is being used, please call initialize() before use");
       return;
     }
 
@@ -199,7 +199,7 @@ namespace navfn {
       const geometry_msgs::PoseStamped& goal, double tolerance, std::vector<geometry_msgs::PoseStamped>& plan){
     boost::mutex::scoped_lock lock(mutex_);
     if(!initialized_){
-      ROS_ERROR("This planner has not been initialized yet, but it is being used, please call initialize() before use");
+      ROS_WARN("This planner has not been initialized yet, but it is being used, please call initialize() before use");
       return false;
     }
 
@@ -210,13 +210,13 @@ namespace navfn {
 
     //until tf can handle transforming things that are way in the past... we'll require the goal to be in our global frame
     if(goal.header.frame_id != global_frame_){
-      ROS_ERROR("The goal pose passed to this planner must be in the %s frame.  It is instead in the %s frame.", 
+      ROS_WARN("The goal pose passed to this planner must be in the %s frame.  It is instead in the %s frame.", 
                 global_frame_.c_str(), goal.header.frame_id.c_str());
       return false;
     }
 
     if(start.header.frame_id != global_frame_){
-      ROS_ERROR("The start pose passed to this planner must be in the %s frame.  It is instead in the %s frame.", 
+      ROS_WARN("The start pose passed to this planner must be in the %s frame.  It is instead in the %s frame.", 
                 global_frame_.c_str(), start.header.frame_id.c_str());
       return false;
     }
@@ -296,7 +296,7 @@ namespace navfn {
         plan.push_back(goal_copy);
       }
       else{
-        ROS_ERROR("Failed to get a plan from potential when a legal potential was found. This shouldn't happen.");
+        ROS_WARN("Failed to get a plan from potential when a legal potential was found. This shouldn't happen.");
       }
     }
 
@@ -342,7 +342,7 @@ namespace navfn {
 
   void NavfnROS::publishPlan(const std::vector<geometry_msgs::PoseStamped>& path, double r, double g, double b, double a){
     if(!initialized_){
-      ROS_ERROR("This planner has not been initialized yet, but it is being used, please call initialize() before use");
+      ROS_WARN("This planner has not been initialized yet, but it is being used, please call initialize() before use");
       return;
     }
 
@@ -366,7 +366,7 @@ namespace navfn {
 
   bool NavfnROS::getPlanFromPotential(const geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& plan){
     if(!initialized_){
-      ROS_ERROR("This planner has not been initialized yet, but it is being used, please call initialize() before use");
+      ROS_WARN("This planner has not been initialized yet, but it is being used, please call initialize() before use");
       return false;
     }
 
@@ -375,7 +375,7 @@ namespace navfn {
 
     //until tf can handle transforming things that are way in the past... we'll require the goal to be in our global frame
     if(goal.header.frame_id != global_frame_){
-      ROS_ERROR("The goal pose passed to this planner must be in the %s frame.  It is instead in the %s frame.", 
+      ROS_WARN("The goal pose passed to this planner must be in the %s frame.  It is instead in the %s frame.", 
                 global_frame_.c_str(), goal.header.frame_id.c_str());
       return false;
     }

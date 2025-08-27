@@ -197,7 +197,7 @@ class FakeOdomNode
       }
       catch(tf2::TransformException &e)
       {
-        ROS_ERROR("Failed to transform to %s from %s: %s\n", odom_frame_id_.c_str(), base_frame_id_.c_str(), e.what());
+        ROS_WARN("Failed to transform to %s from %s: %s\n", odom_frame_id_.c_str(), base_frame_id_.c_str(), e.what());
         return;
       }
 

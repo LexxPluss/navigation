@@ -174,15 +174,15 @@ bool makeFootprintFromString(const std::string& footprint_string, std::vector<ge
 
   if (error != "")
   {
-    ROS_ERROR("Error parsing footprint parameter: '%s'", error.c_str());
-    ROS_ERROR("  Footprint string was '%s'.", footprint_string.c_str());
+    ROS_WARN("Error parsing footprint parameter: '%s'", error.c_str());
+    ROS_WARN("  Footprint string was '%s'.", footprint_string.c_str());
     return false;
   }
 
   // convert vvf into points.
   if (vvf.size() < 3)
   {
-    ROS_ERROR("You must specify at least three points for the robot footprint, reverting to previous footprint.");
+    ROS_WARN("You must specify at least three points for the robot footprint, reverting to previous footprint.");
     return false;
   }
   footprint.reserve(vvf.size());
@@ -198,7 +198,7 @@ bool makeFootprintFromString(const std::string& footprint_string, std::vector<ge
     }
     else
     {
-      ROS_ERROR("Points in the footprint specification must be pairs of numbers.  Found a point with %d numbers.",
+      ROS_WARN("Points in the footprint specification must be pairs of numbers.  Found a point with %d numbers.",
                  int(vvf[ i ].size()));
       return false;
     }

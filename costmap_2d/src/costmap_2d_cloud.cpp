@@ -62,7 +62,7 @@ void voxelCallback(const ros::Publisher& pub_marked, const ros::Publisher& pub_u
 {
   if (grid->data.empty())
   {
-    ROS_ERROR("Received empty voxel grid");
+    ROS_WARN("Received empty voxel grid");
     return;
   }
 

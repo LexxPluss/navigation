@@ -61,7 +61,7 @@ void voxelCallback(const ros::Publisher& pub, const costmap_2d::VoxelGridConstPt
 {
   if (grid->data.empty())
   {
-    ROS_ERROR("Received empty voxel grid");
+    ROS_WARN("Received empty voxel grid");
     return;
   }
 

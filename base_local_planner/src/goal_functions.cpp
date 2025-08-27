@@ -98,7 +98,7 @@ namespace base_local_planner {
     transformed_plan.clear();
 
     if (global_plan.empty()) {
-      ROS_ERROR("Received plan with zero length");
+      ROS_WARN("Received plan with zero length");
       return false;
     }
 
@@ -148,17 +148,17 @@ namespace base_local_planner {
       }
     }
     catch(tf2::LookupException& ex) {
-      ROS_ERROR("No Transform available Error: %s\n", ex.what());
+      ROS_WARN("No Transform available Error: %s\n", ex.what());
       return false;
     }
     catch(tf2::ConnectivityException& ex) {
-      ROS_ERROR("Connectivity Error: %s\n", ex.what());
+      ROS_WARN("Connectivity Error: %s\n", ex.what());
       return false;
     }
     catch(tf2::ExtrapolationException& ex) {
-      ROS_ERROR("Extrapolation Error: %s\n", ex.what());
+      ROS_WARN("Extrapolation Error: %s\n", ex.what());
       if (!global_plan.empty())
-        ROS_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
+        ROS_WARN("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
 
       return false;
     }
@@ -171,7 +171,7 @@ namespace base_local_planner {
       const std::string& global_frame, geometry_msgs::PoseStamped &goal_pose) {
     if (global_plan.empty())
     {
-      ROS_ERROR("Received plan with zero length");
+      ROS_WARN("Received plan with zero length");
       return false;
     }
 
@@ -184,17 +184,17 @@ namespace base_local_planner {
       tf2::doTransform(plan_goal_pose, goal_pose, transform);
     }
     catch(tf2::LookupException& ex) {
-      ROS_ERROR("No Transform available Error: %s\n", ex.what());
+      ROS_WARN("No Transform available Error: %s\n", ex.what());
       return false;
     }
     catch(tf2::ConnectivityException& ex) {
-      ROS_ERROR("Connectivity Error: %s\n", ex.what());
+      ROS_WARN("Connectivity Error: %s\n", ex.what());
       return false;
     }
     catch(tf2::ExtrapolationException& ex) {
-      ROS_ERROR("Extrapolation Error: %s\n", ex.what());
+      ROS_WARN("Extrapolation Error: %s\n", ex.what());
       if (global_plan.size() > 0)
-        ROS_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
+        ROS_WARN("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
 
       return false;
     }
