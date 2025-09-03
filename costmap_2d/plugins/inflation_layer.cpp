@@ -168,6 +168,7 @@ void InflationLayer::updateBounds(double robot_x, double robot_y, double robot_y
 
 void InflationLayer::onFootprintChanged()
 {
+  boost::unique_lock<boost::recursive_mutex> lock(*inflation_access_);
   inscribed_radius_ = layered_costmap_->getInscribedRadius();
   cell_inflation_radius_ = cellDistance(inflation_radius_);
   computeCaches();
