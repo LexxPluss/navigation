@@ -72,7 +72,7 @@ namespace carrot_planner {
   //we need to take the footprint of the robot into account when we calculate cost to obstacles
   double CarrotPlanner::footprintCost(double x_i, double y_i, double theta_i){
     if(!initialized_){
-      ROS_ERROR("The planner has not been initialized, please call initialize() to use the planner");
+      ROS_WARN("The planner has not been initialized, please call initialize() to use the planner");
       return -1.0;
     }
 
@@ -91,7 +91,7 @@ namespace carrot_planner {
       const geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& plan){
 
     if(!initialized_){
-      ROS_ERROR("The planner has not been initialized, please call initialize() to use the planner");
+      ROS_WARN("The planner has not been initialized, please call initialize() to use the planner");
       return false;
     }
 
@@ -101,7 +101,7 @@ namespace carrot_planner {
     costmap_ = costmap_ros_->getCostmap();
 
     if(goal.header.frame_id != costmap_ros_->getGlobalFrameID()){
-      ROS_ERROR("This planner as configured will only accept goals in the %s frame, but a goal was sent in the %s frame.", 
+      ROS_WARN("This planner as configured will only accept goals in the %s frame, but a goal was sent in the %s frame.", 
           costmap_ros_->getGlobalFrameID().c_str(), goal.header.frame_id.c_str());
       return false;
     }

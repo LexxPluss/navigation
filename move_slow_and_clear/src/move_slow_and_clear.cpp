@@ -74,7 +74,7 @@ namespace move_slow_and_clear
   {
     if(!initialized_)
     {
-      ROS_ERROR("This recovery behavior has not been initialized, doing nothing.");
+      ROS_WARN("This recovery behavior has not been initialized, doing nothing.");
       return;
     }
     ROS_WARN("Move slow and clear recovery behavior started.");
@@ -133,12 +133,12 @@ namespace move_slow_and_clear
     {
       if(!planner_nh_.getParam("max_trans_vel", old_trans_speed_))
       {
-        ROS_ERROR("The planner %s, does not have the parameter max_trans_vel", planner_nh_.getNamespace().c_str());
+        ROS_WARN("The planner %s, does not have the parameter max_trans_vel", planner_nh_.getNamespace().c_str());
       }
 
       if(!planner_nh_.getParam("max_rot_vel", old_rot_speed_))
       {
-        ROS_ERROR("The planner %s, does not have the parameter max_rot_vel", planner_nh_.getNamespace().c_str());
+        ROS_WARN("The planner %s, does not have the parameter max_rot_vel", planner_nh_.getNamespace().c_str());
       }
     }
 
@@ -202,7 +202,7 @@ namespace move_slow_and_clear
         ROS_INFO_STREAM("Recovery setting trans vel: " << trans_speed);
       }
       catch(...) {
-        ROS_ERROR("Something went wrong in the service call to dynamic_reconfigure");
+        ROS_WARN("Something went wrong in the service call to dynamic_reconfigure");
       }
     }
     {
@@ -216,7 +216,7 @@ namespace move_slow_and_clear
         ROS_INFO_STREAM("Recovery setting rot vel: " << rot_speed);
       }
       catch(...) {
-        ROS_ERROR("Something went wrong in the service call to dynamic_reconfigure");
+        ROS_WARN("Something went wrong in the service call to dynamic_reconfigure");
       }
     }
   }

@@ -143,13 +143,13 @@ namespace base_local_planner {
       //Since I screwed up nicely in my documentation, I'm going to add errors
       //informing the user if they've set one of the wrong parameters
       if(private_nh.hasParam("acc_limit_x"))
-        ROS_ERROR("You are using acc_limit_x where you should be using acc_lim_x. Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
+        ROS_WARN("You are using acc_limit_x where you should be using acc_lim_x. Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
 
       if(private_nh.hasParam("acc_limit_y"))
-        ROS_ERROR("You are using acc_limit_y where you should be using acc_lim_y. Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
+        ROS_WARN("You are using acc_limit_y where you should be using acc_lim_y. Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
 
       if(private_nh.hasParam("acc_limit_th"))
-        ROS_ERROR("You are using acc_limit_th where you should be using acc_lim_th. Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
+        ROS_WARN("You are using acc_limit_th where you should be using acc_lim_th. Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
 
       //Assuming this planner is being run within the navigation stack, we can
       //just do an upward search for the frequency at which its being run. This
@@ -372,7 +372,7 @@ namespace base_local_planner {
 
   bool TrajectoryPlannerROS::setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan){
     if (! isInitialized()) {
-      ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+      ROS_WARN("This planner has not been initialized, please call initialize() before using this planner");
       return false;
     }
 
@@ -389,7 +389,7 @@ namespace base_local_planner {
 
   bool TrajectoryPlannerROS::computeVelocityCommands(geometry_msgs::Twist& cmd_vel){
     if (! isInitialized()) {
-      ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+      ROS_WARN("This planner has not been initialized, please call initialize() before using this planner");
       return false;
     }
 
@@ -614,7 +614,7 @@ namespace base_local_planner {
 
   bool TrajectoryPlannerROS::isGoalReached() {
     if (! isInitialized()) {
-      ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+      ROS_WARN("This planner has not been initialized, please call initialize() before using this planner");
       return false;
     }
     //return flag set in controller

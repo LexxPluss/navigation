@@ -68,7 +68,7 @@ bool ObservationBuffer::setGlobalFrame(const std::string new_global_frame)
   geometry_msgs::TransformStamped transformStamped;
   if (!tf2_buffer_.canTransform(new_global_frame, global_frame_, transform_time, ros::Duration(tf_tolerance_), &tf_error))
   {
-    ROS_ERROR("Transform between %s and %s with tolerance %.2f failed: %s.", new_global_frame.c_str(),
+    ROS_WARN("Transform between %s and %s with tolerance %.2f failed: %s.", new_global_frame.c_str(),
               global_frame_.c_str(), tf_tolerance_, tf_error.c_str());
     return false;
   }
@@ -94,7 +94,7 @@ bool ObservationBuffer::setGlobalFrame(const std::string new_global_frame)
     }
     catch (TransformException& ex)
     {
-      ROS_ERROR("TF Error attempting to transform an observation from %s to %s: %s", global_frame_.c_str(),
+      ROS_WARN("TF Error attempting to transform an observation from %s to %s: %s", global_frame_.c_str(),
                 new_global_frame.c_str(), ex.what());
       return false;
     }
@@ -176,7 +176,7 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::PointCloud2& cloud)
   {
     // if an exception occurs, we need to remove the empty observation from the list
     observation_list_.pop_front();
-    ROS_ERROR("TF Exception that should never happen for sensor frame: %s, cloud frame: %s, %s", sensor_frame_.c_str(),
+    ROS_WARN("TF Exception that should never happen for sensor frame: %s, cloud frame: %s, %s", sensor_frame_.c_str(),
               cloud.header.frame_id.c_str(), ex.what());
     return;
   }

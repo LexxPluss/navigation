@@ -192,7 +192,7 @@ namespace dwa_local_planner {
 
   bool DWAPlannerROS::setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan) {
     if (! isInitialized()) {
-      ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+      ROS_WARN("This planner has not been initialized, please call initialize() before using this planner");
       return false;
     }
     geometry_msgs::PoseStamped new_goal = orig_global_plan.back();
@@ -244,11 +244,11 @@ namespace dwa_local_planner {
 
   bool DWAPlannerROS::isGoalReached() {
     if (! isInitialized()) {
-      ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+      ROS_WARN("This planner has not been initialized, please call initialize() before using this planner");
       return false;
     }
     if ( ! costmap_ros_->getRobotPose(current_pose_)) {
-      ROS_ERROR("Could not get robot pose");
+      ROS_WARN("Could not get robot pose");
       return false;
     }
 
@@ -256,7 +256,7 @@ namespace dwa_local_planner {
       geometry_msgs::PoseStamped goal_pose;
       if (!planner_util_.getGoal(goal_pose))
       {
-        ROS_ERROR("Could not get goal pose");
+        ROS_WARN("Could not get goal pose");
         return false;
       }
       double x = goal_pose.pose.position.x - current_pose_.pose.position.x;
@@ -308,7 +308,7 @@ namespace dwa_local_planner {
   bool DWAPlannerROS::dwaComputeVelocityCommands(geometry_msgs::PoseStamped &global_pose, geometry_msgs::Twist& cmd_vel) {
     // dynamic window sampling approach to get useful velocity commands
     if(! isInitialized()){
-      ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+      ROS_WARN("This planner has not been initialized, please call initialize() before using this planner");
       return false;
     }
 
@@ -407,12 +407,12 @@ namespace dwa_local_planner {
     this->check_cargo_angle();
     // dispatches to either dwa sampling control or stop and rotate control, depending on whether we have been close enough to goal
     if ( ! costmap_ros_->getRobotPose(current_pose_)) {
-      ROS_ERROR("Could not get robot pose");
+      ROS_WARN("Could not get robot pose");
       return false;
     }
     std::vector<geometry_msgs::PoseStamped> transformed_plan;
     if ( ! planner_util_.getLocalPlan(current_pose_, transformed_plan)) {
-      ROS_ERROR("Could not get local plan");
+      ROS_WARN("Could not get local plan");
       return false;
     }
 

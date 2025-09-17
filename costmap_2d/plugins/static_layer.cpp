@@ -320,7 +320,7 @@ void StaticLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, int
     }
     catch (tf2::TransformException ex)
     {
-      ROS_ERROR("%s", ex.what());
+      ROS_WARN("%s", ex.what());
       return;
     }
     // Copy map data given proper transformations

@@ -95,7 +95,7 @@ double ObstacleCostFunction::scoreTrajectory(Trajectory &traj) {
   double px, py, pth;
   if (footprint_spec_.size() == 0) {
     // Bug, should never happen
-    ROS_ERROR("Footprint spec is empty, maybe missing call to setFootprint?");
+    ROS_WARN("Footprint spec is empty, maybe missing call to setFootprint?");
     return -9;
   }
 

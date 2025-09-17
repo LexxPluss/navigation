@@ -80,18 +80,18 @@ void ClearCostmapRecovery::initialize(std::string name, tf2_ros::Buffer* tf,
     initialized_ = true;
   }
   else{
-    ROS_ERROR("You should not call initialize twice on this object, doing nothing");
+    ROS_WARN("You should not call initialize twice on this object, doing nothing");
   }
 }
 
 void ClearCostmapRecovery::runBehavior(){
   if(!initialized_){
-    ROS_ERROR("This object must be initialized before runBehavior is called");
+    ROS_WARN("This object must be initialized before runBehavior is called");
     return;
   }
 
   if(global_costmap_ == NULL || local_costmap_ == NULL){
-    ROS_ERROR("The costmaps passed to the ClearCostmapRecovery object cannot be NULL. Doing nothing.");
+    ROS_WARN("The costmaps passed to the ClearCostmapRecovery object cannot be NULL. Doing nothing.");
     return;
   }
 
@@ -129,7 +129,7 @@ void ClearCostmapRecovery::clear(costmap_2d::Costmap2DROS* costmap){
   geometry_msgs::PoseStamped pose;
 
   if(!costmap->getRobotPose(pose)){
-    ROS_ERROR("Cannot clear map because pose cannot be retrieved");
+    ROS_WARN("Cannot clear map because pose cannot be retrieved");
     return;
   }
 

@@ -165,7 +165,7 @@ Costmap2DROS::Costmap2DROS(const std::string& name, tf2_ros::Buffer& tf) :
     std::vector<geometry_msgs::Point> new_footprint = makeFootprintFromParams(private_nh, "footprint");
 
     if(new_footprint.empty()) {
-      ROS_ERROR("empty vector loaded");
+      ROS_WARN("empty vector loaded");
     }
     setUnpaddedRobotFootprint(new_footprint);
   }
@@ -428,7 +428,7 @@ void Costmap2DROS::readFootprintFromConfig(const costmap_2d::Costmap2DConfig &ne
     }
     else
     {
-        ROS_ERROR("Invalid footprint string from dynamic reconfigure");
+        ROS_WARN("Invalid footprint string from dynamic reconfigure");
     }
   }
   else
@@ -625,17 +625,17 @@ bool Costmap2DROS::getRobotPose(geometry_msgs::PoseStamped& global_pose) const
   }
   catch (tf2::LookupException& ex)
   {
-    ROS_ERROR_THROTTLE(1.0, "No Transform available Error looking up robot pose: %s\n", ex.what());
+    ROS_WARN_THROTTLE(1.0, "No Transform available Error looking up robot pose: %s\n", ex.what());
     return false;
   }
   catch (tf2::ConnectivityException& ex)
   {
-    ROS_ERROR_THROTTLE(1.0, "Connectivity Error looking up robot pose: %s\n", ex.what());
+    ROS_WARN_THROTTLE(1.0, "Connectivity Error looking up robot pose: %s\n", ex.what());
     return false;
   }
   catch (tf2::ExtrapolationException& ex)
   {
-    ROS_ERROR_THROTTLE(1.0, "Extrapolation Error looking up robot pose: %s\n", ex.what());
+    ROS_WARN_THROTTLE(1.0, "Extrapolation Error looking up robot pose: %s\n", ex.what());
     return false;
   }
   // check global_pose timeout

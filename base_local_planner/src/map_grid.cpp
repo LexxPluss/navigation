@@ -198,7 +198,7 @@ namespace base_local_planner{
       }
     }
     if (!started_path) {
-      ROS_ERROR("None of the %d first of %zu (%zu) points of the global plan were in the local costmap and free",
+      ROS_WARN("None of the %d first of %zu (%zu) points of the global plan were in the local costmap and free",
           i, adjusted_global_plan.size(), global_plan.size());
       return;
     }
@@ -234,7 +234,7 @@ namespace base_local_planner{
       }
     }
     if (!started_path) {
-      ROS_ERROR("None of the points of the global plan were in the local costmap, global plan points too far from robot");
+      ROS_WARN("None of the points of the global plan were in the local costmap, global plan points too far from robot");
       return;
     }
 

@@ -24,7 +24,7 @@ void RemoveVirtualObstacleRecovery::initialize(std::string name, tf2_ros::Buffer
     }
     else
     {
-        ROS_ERROR("You should not call initialize twice on this object, doing nothing");
+        ROS_WARN("You should not call initialize twice on this object, doing nothing");
     }
 }
 

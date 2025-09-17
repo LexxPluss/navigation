@@ -40,7 +40,7 @@ void RotateSmallRecovery::initialize(std::string name, tf2_ros::Buffer*,
   }
   else
   {
-    ROS_ERROR("You should not call initialize twice on this object, doing nothing");
+    ROS_WARN("You should not call initialize twice on this object, doing nothing");
   }
 }
 
@@ -53,13 +53,13 @@ void RotateSmallRecovery::runBehavior()
 {
   if (!initialized_)
   {
-    ROS_ERROR("This object must be initialized before runBehavior is called");
+    ROS_WARN("This object must be initialized before runBehavior is called");
     return;
   }
 
   if (local_costmap_ == NULL)
   {
-    ROS_ERROR("The costmap passed to the RotateRecovery object cannot be NULL. Doing nothing.");
+    ROS_WARN("The costmap passed to the RotateRecovery object cannot be NULL. Doing nothing.");
     return;
   }
   ROS_WARN("Rotate recovery behavior started.");
@@ -104,7 +104,7 @@ void RotateSmallRecovery::runBehavior()
       double footprint_cost = world_model_->footprintCost(x, y, theta, local_costmap_->getRobotFootprint(), 0.0, 0.0);
       if (footprint_cost < 0.0)
       {
-        ROS_ERROR("Rotate recovery can't rotate in place because there is a potential collision. Cost: %.2f",
+        ROS_WARN("Rotate recovery can't rotate in place because there is a potential collision. Cost: %.2f",
                   footprint_cost);
         return;
       }

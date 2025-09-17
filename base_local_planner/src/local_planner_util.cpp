@@ -90,7 +90,7 @@ bool LocalPlannerUtil::getGoal(geometry_msgs::PoseStamped& goal_pose) {
 
 bool LocalPlannerUtil::setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan) {
   if(!initialized_){
-    ROS_ERROR("Planner utils have not been initialized, please call initialize() first");
+    ROS_WARN("Planner utils have not been initialized, please call initialize() first");
     return false;
   }
 
