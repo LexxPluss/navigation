@@ -187,8 +187,6 @@ namespace move_base {
 
       void actionGoalCB(const move_base_msgs::MoveBaseActionGoal::ConstPtr& goal);
 
-      void carryingStatusCB(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg);
-
       void carryingInfoCB(const lexxauto_msgs::CarryingInformation::ConstPtr& msg);
 
       void planThread();
@@ -209,9 +207,6 @@ namespace move_base {
       void wakePlanner(const ros::TimerEvent& event);
 
       void resetRecovery();
-
-      // feature switch flag
-      bool use_carrying_manager_;
 
       tf2_ros::Buffer& tf_;
 
@@ -248,7 +243,7 @@ namespace move_base {
       double conservative_reset_dist_, clearing_radius_, max_sim_time_, min_occdist_scale_;
       ros::Publisher current_goal_pub_, vel_pub_, action_goal_pub_, recovery_status_pub_;
       ros::Publisher amr_status_pub_, virtual_obstacle_enabled_pub_, dist_to_current_goal_pub_;
-      ros::Subscriber goal_sub_, carrying_status_sub_, carrying_info_sub_, action_goal_sub_;
+      ros::Subscriber goal_sub_, carrying_info_sub_, action_goal_sub_;
       ros::ServiceServer make_plan_srv_, clear_costmaps_srv_;
       bool shutdown_costmaps_, clearing_rotation_allowed_, recovery_behavior_enabled_, backward_recovery_allowed_, abort_after_recovery_allowed_;
       bool remove_virtual_obstacle_recovery_allowed_;
@@ -301,4 +296,3 @@ namespace move_base {
   };
 };
 #endif
-

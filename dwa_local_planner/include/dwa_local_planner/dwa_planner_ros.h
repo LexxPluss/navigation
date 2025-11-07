@@ -50,7 +50,6 @@
 #include <nav_msgs/Odometry.h>
 #include <std_msgs/String.h>
 #include <std_msgs/UInt8.h>
-#include <std_msgs/Float64.h>
 #include <std_srvs/Empty.h>
 #include <visualization_msgs/Marker.h>
 #include <lexxauto_msgs/CarryingInformation.h>
@@ -122,8 +121,6 @@ namespace dwa_local_planner {
 
       void actuator_position_callback(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg);
 
-      void cargo_angle_callback(const std_msgs::Float64::ConstPtr& msg);
-
       void carrying_info_callback(const lexxauto_msgs::CarryingInformation::ConstPtr& msg);
 
       void call_nomotion_update_callback(const ros::TimerEvent& event);
@@ -133,8 +130,6 @@ namespace dwa_local_planner {
 
     private:
 
-      // feature switch flag
-      bool use_carrying_manager_;
       bool use_clear_plan_;
 
       /**
@@ -157,7 +152,6 @@ namespace dwa_local_planner {
       ros::Subscriber actuator_position_sub_;
       ros::ServiceClient nomotion_update_client_;
       ros::Timer nomotion_update_timer_;
-      ros::Subscriber cargo_angle_sub_;
       ros::Subscriber carrying_info_sub_;
 
       std_msgs::UInt8 vel_cmd_mode_msg_;
