@@ -108,9 +108,6 @@ namespace dwa_local_planner {
       ros::NodeHandle nh;
       ros::NodeHandle private_nh("~/" + name);
 
-      // feature switch flag
-      nh.param<bool>("carrying_manager/use_carrying_manager", this->use_carrying_manager_, false);
-
       g_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
       l_plan_pub_ = private_nh.advertise<nav_msgs::Path>("local_plan", 1);
       vel_cmd_mode_pub_ = private_nh.advertise<std_msgs::UInt8>("vel_cmd_mode", 1);
@@ -123,14 +120,7 @@ namespace dwa_local_planner {
       actuator_position_sub_ = nh.subscribe("actuator_position", 10, &DWAPlannerROS::actuator_position_callback, this);
       nomotion_update_client_ = nh.serviceClient<std_srvs::Empty>("request_nomotion_update");
       nomotion_update_timer_ = nh.createTimer(ros::Duration(1.0 / 10.0), &DWAPlannerROS::call_nomotion_update_callback, this);
-      if (this->use_carrying_manager_)
-      {
-        carrying_info_sub_ = nh.subscribe("carrying_manager/carrying_info", 1, &DWAPlannerROS::carrying_info_callback, this);
-      }
-      else
-      {
-        cargo_angle_sub_ = nh.subscribe("cargo_angle", 1, &DWAPlannerROS::cargo_angle_callback, this);
-      }
+      carrying_info_sub_ = nh.subscribe("carrying_manager/carrying_info", 1, &DWAPlannerROS::carrying_info_callback, this);
 
       // make sure to update the costmap we'll use for this cycle
       costmap_2d::Costmap2D* costmap = costmap_ros_->getCostmap();
@@ -207,21 +197,10 @@ namespace dwa_local_planner {
     goalLatchedStopRotateController_.resetLatching();
 
     auto is_rotate = [this]() -> bool {
-      if (this->use_carrying_manager_)
+      if ((this->is_weight_applied_ && this->use_rotate_first_actuator_connect_) ||
+          (!this->is_weight_applied_ && this->use_rotate_first_actuator_disconnect_))
       {
-        if ((this->is_weight_applied_ && this->use_rotate_first_actuator_connect_) ||
-            (!this->is_weight_applied_ && this->use_rotate_first_actuator_disconnect_))
-        {
-          return true;
-        }
-      }
-      else
-      {
-        if ((this->is_actuator_connect_ && this->use_rotate_first_actuator_connect_) ||
-            (!this->is_actuator_connect_ && this->use_rotate_first_actuator_disconnect_))
-        {
-          return true;
-        }
+        return true;
       }
       return false;
     };
@@ -669,24 +648,6 @@ namespace dwa_local_planner {
 
   }
 
-  void DWAPlannerROS::cargo_angle_callback(const std_msgs::Float64::ConstPtr& msg)
-  {
-    this->current_cargo_angle_ = msg->data;
-    this->dp_->setCargoAngle(msg->data);
-    this->goalLatchedStopRotateController_.setCargoAngle(msg->data);
-    this->startLatchedStopRotateController_.setCargoAngle(msg->data);
-    if (!this->is_cargo_fixed_)
-    {
-      this->is_cargo_enabled_ = true;
-      this->cargo_angle_recv_time_ = ros::Time::now();
-    }
-    else
-    {
-      this->is_cargo_enabled_ = false;
-    }
-  }
-
-
   void DWAPlannerROS::carrying_info_callback(const lexxauto_msgs::CarryingInformation::ConstPtr& msg)
   {
     // set is_weight_applied
@@ -719,19 +680,25 @@ namespace dwa_local_planner {
     this->dp_->setCargoAngle(msg->cart_angle);
     this->goalLatchedStopRotateController_.setCargoAngle(msg->cart_angle);
     this->startLatchedStopRotateController_.setCargoAngle(msg->cart_angle);
+
+    if (this->is_cargo_fixed_)
+    {
+      this->is_cargo_enabled_ = false;
+    }
+    else if (this->is_cargo_enabled_)
+    {
+      this->cargo_angle_recv_time_ = ros::Time::now();
+    }
   }
 
   void DWAPlannerROS::check_cargo_angle()
   {
-    if (!this->use_carrying_manager_)
+    if (this->is_cargo_enabled_ && !this->cargo_angle_recv_time_.isZero())
     {
-      if (this->is_cargo_enabled_)
+      ros::Duration d = ros::Time::now() - this->cargo_angle_recv_time_;
+      if (this->cargo_timeout_sec_ < d.toSec())
       {
-        ros::Duration d = ros::Time::now() - this->cargo_angle_recv_time_;
-        if (this->cargo_timeout_sec_ < d.toSec())
-        {
-          this->is_cargo_enabled_ = false;
-        }
+        this->is_cargo_enabled_ = false;
       }
     }
     ROS_DEBUG_STREAM("DWAPlannerROS :: is_cargo_enabled :: " << this->is_cargo_enabled_);

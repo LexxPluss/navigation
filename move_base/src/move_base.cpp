@@ -67,9 +67,6 @@ namespace move_base {
     ros::NodeHandle private_nh("~");
     ros::NodeHandle nh;
 
-    // feature switch flag
-    nh.param<bool>("carrying_manager/use_carrying_manager", this->use_carrying_manager_, false);
-
     recovery_trigger_ = PLANNING_R;
 
     //get some parameters that will be global to the move base node
@@ -129,14 +126,7 @@ namespace move_base {
     //for robot status
     amr_status_pub_ = nh.advertise<std_msgs::String>("amr_status", 1);
 
-    if (this->use_carrying_manager_)
-    {
-      carrying_info_sub_ = nh.subscribe("carrying_manager/carrying_info", 1, &MoveBase::carryingInfoCB, this);
-    }
-    else
-    {
-      carrying_status_sub_ = nh.subscribe<lexxauto_msgs::ActuatorStatus>("actuator_position", 1, boost::bind(&MoveBase::carryingStatusCB, this, _1));
-    }
+    carrying_info_sub_ = nh.subscribe("carrying_manager/carrying_info", 1, &MoveBase::carryingInfoCB, this);
 
     this->virtual_obstacle_enabled_pub_ = nh.advertise<std_msgs::Bool>("virtual_obstacle_map/enable", 1, true);
     recovery_status_pub_= action_nh.advertise<move_base_msgs::RecoveryStatus>("recovery_status", 1);
@@ -346,19 +336,6 @@ namespace move_base {
     std_msgs::Bool enable_msg;
     enable_msg.data = true;
     this->virtual_obstacle_enabled_pub_.publish(enable_msg);
-  }
-
-  void MoveBase::carryingStatusCB(const lexxauto_msgs::ActuatorStatus::ConstPtr& msg)
-  {
-    if (msg->connect)
-    {
-      this->current_recovery_behaviors_ = this->recovery_behaviors_carrying_;
-    }
-    else
-    {
-      this->current_recovery_behaviors_ = this->recovery_behaviors_;
-    }
-    is_carrying_ = msg->connect;  
   }
 
   void MoveBase::carryingInfoCB(const lexxauto_msgs::CarryingInformation::ConstPtr& msg)
