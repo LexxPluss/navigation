@@ -16,6 +16,7 @@
   <depend>costmap_2d</depend>
   <depend>geometry_msgs</depend>
   <depend>nav_core</depend>
+  <depend>topic_tools</depend>
   <depend>pluginlib</depend>
   <depend>roscpp</depend>
   <depend>tf2</depend>

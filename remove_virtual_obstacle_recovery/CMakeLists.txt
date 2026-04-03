@@ -5,6 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
   base_local_planner
   costmap_2d
   geometry_msgs
+  topic_tools
   nav_core
   pluginlib
   roscpp
@@ -20,6 +21,7 @@ catkin_package(
     base_local_planner
     costmap_2d
     geometry_msgs
+    topic_tools
     nav_core
     pluginlib
     roscpp

@@ -115,6 +115,14 @@ public:
    */
   void resetLayers();
 
+  /**
+   * @brief Reinitialize all layers via a full stop/start cycle.
+   * Deactivates all layers, unlocks size constraints, then re-activates,
+   * causing each layer to re-run its initialization and re-subscribe
+   * to data sources.
+   */
+  void reinitializeLayers();
+
   /** @brief Same as getLayeredCostmap()->isCurrent(). */
   bool isCurrent()
     {

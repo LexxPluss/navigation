@@ -32,7 +32,7 @@ RemoveVirtualObstacleRecovery::~RemoveVirtualObstacleRecovery()
 {
 }
 
-void RemoveVirtualObstacleRecovery::virtualObstacleMapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
+void RemoveVirtualObstacleRecovery::virtualObstacleMapCallback(const topic_tools::ShapeShifter::ConstPtr& msg)
 {
     this->virtual_obstacle_map_received_ = true;
 }
