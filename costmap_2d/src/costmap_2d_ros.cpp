@@ -609,6 +609,14 @@ void Costmap2DROS::resetLayers()
   }
 }
 
+void Costmap2DROS::reinitializeLayers()
+{
+  ROS_INFO("Reinitializing costmap layers");
+  stop();
+  layered_costmap_->unlockSize();
+  start();
+}
+
 bool Costmap2DROS::getRobotPose(geometry_msgs::PoseStamped& global_pose) const
 {
   tf2::toMsg(tf2::Transform::getIdentity(), global_pose.pose);

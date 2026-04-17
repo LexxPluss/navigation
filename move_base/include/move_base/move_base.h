@@ -125,6 +125,13 @@ namespace move_base {
       bool clearCostmapsService(std_srvs::Empty::Request &req, std_srvs::Empty::Response &resp);
 
       /**
+       * @brief  Reinitialize all costmap layers.
+       * Performs a full stop/start cycle, re-running layer initialization
+       * to ensure costmap state is consistent after plugin reconfiguration.
+       */
+      bool reinitializeCostmapsService(std_srvs::Empty::Request &req, std_srvs::Empty::Response &resp);
+
+      /**
        * @brief  Clears the costmaps of obstacles
        * @return True if the service call succeeds, false otherwise
        */
@@ -244,7 +251,7 @@ namespace move_base {
       ros::Publisher current_goal_pub_, vel_pub_, action_goal_pub_, recovery_status_pub_;
       ros::Publisher amr_status_pub_, virtual_obstacle_enabled_pub_, dist_to_current_goal_pub_;
       ros::Subscriber goal_sub_, carrying_info_sub_, action_goal_sub_;
-      ros::ServiceServer make_plan_srv_, clear_costmaps_srv_;
+      ros::ServiceServer make_plan_srv_, clear_costmaps_srv_, reinitialize_costmaps_srv_;
       bool shutdown_costmaps_, clearing_rotation_allowed_, recovery_behavior_enabled_, backward_recovery_allowed_, abort_after_recovery_allowed_;
       bool remove_virtual_obstacle_recovery_allowed_;
       bool conservative_clearing_map_allowed_, aggressive_clearing_map_allowed_;

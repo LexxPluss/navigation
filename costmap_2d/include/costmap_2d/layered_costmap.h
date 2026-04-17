@@ -119,6 +119,11 @@ public:
     return size_locked_;
   }
 
+  void unlockSize()
+  {
+    size_locked_ = false;
+  }
+
   void getBounds(unsigned int* x0, unsigned int* xn, unsigned int* y0, unsigned int* yn)
   {
     *x0 = bx0_;

@@ -4,6 +4,7 @@
 #include <costmap_2d/costmap_2d_ros.h>
 #include <ros/ros.h>
 #include <std_msgs/Bool.h>
+#include <topic_tools/shape_shifter.h>
 
 namespace remove_virtual_obstacle_recovery
 {
@@ -24,7 +25,7 @@ class RemoveVirtualObstacleRecovery : public nav_core::RecoveryBehavior
         ros::Publisher virtual_obstacle_enabled_pub_;
         ros::Subscriber virtual_obstacle_map_sub_;
 
-        void virtualObstacleMapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg);
+        void virtualObstacleMapCallback(const topic_tools::ShapeShifter::ConstPtr& msg);
 };
 };  // namespace remove_virtual_obstacle_recovery
 

@@ -190,6 +190,9 @@ namespace move_base {
     //advertise a service for clearing the costmaps
     clear_costmaps_srv_ = private_nh.advertiseService("clear_costmaps", &MoveBase::clearCostmapsService, this);
 
+    //advertise a service for reinitializing costmaps (full layer re-initialization)
+    reinitialize_costmaps_srv_ = private_nh.advertiseService("reinitialize_costmaps", &MoveBase::reinitializeCostmapsService, this);
+
     //if we shutdown our costmaps when we're deactivated... we'll do that now
     if(shutdown_costmaps_){
       ROS_DEBUG_NAMED("move_base","Stopping costmaps initially");
@@ -420,6 +423,13 @@ namespace move_base {
     planner_costmap_ros_->resetLayers();
     planner_costmap_ros_->updateMap();
 
+    return true;
+  }
+
+  bool MoveBase::reinitializeCostmapsService(std_srvs::Empty::Request &req, std_srvs::Empty::Response &resp){
+    ROS_INFO("Reinitializing costmaps");
+    planner_costmap_ros_->reinitializeLayers();
+    controller_costmap_ros_->reinitializeLayers();
     return true;
   }
 

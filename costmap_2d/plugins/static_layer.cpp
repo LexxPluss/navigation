@@ -251,8 +251,12 @@ void StaticLayer::activate()
 void StaticLayer::deactivate()
 {
   map_sub_.shutdown();
+  map_sub_ = ros::Subscriber();
   if (subscribe_to_updates_)
+  {
     map_update_sub_.shutdown();
+    map_update_sub_ = ros::Subscriber();
+  }
 }
 
 void StaticLayer::reset()
