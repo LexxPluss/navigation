@@ -449,6 +449,7 @@ void Costmap2DROS::setUnpaddedRobotFootprint(const std::vector<geometry_msgs::Po
     padded_footprint_ = padded;
   }
 
+  boost::unique_lock<Costmap2D::mutex_t> lock(*(layered_costmap_->getCostmap()->getMutex()));
   layered_costmap_->setFootprint(padded);
 }
 
