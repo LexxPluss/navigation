@@ -191,11 +191,12 @@ Costmap2DROS::Costmap2DROS(const std::string& name, tf2_ros::Buffer& tf) :
 void Costmap2DROS::setUnpaddedRobotFootprintPolygon(const geometry_msgs::Polygon& footprint)
 {
   std::vector<geometry_msgs::Point> points = toPointVector(footprint);
+  const std::vector<geometry_msgs::Point> current_footprint = getUnpaddedRobotFootprint();
 
   // check if the footprint is the same as the one we already have
   bool is_changed = false;
   constexpr double EPSILON = 1e-6;
-  if (points.size() != unpadded_footprint_.size())
+  if (points.size() != current_footprint.size())
   {
     is_changed = true;
   }
@@ -203,8 +204,8 @@ void Costmap2DROS::setUnpaddedRobotFootprintPolygon(const geometry_msgs::Polygon
   {
     for (unsigned int i = 0; i < points.size(); i++)
     {
-      if (EPSILON < std::abs(points[i].x - unpadded_footprint_[i].x)
-        || EPSILON < std::abs(points[i].y - unpadded_footprint_[i].y))
+      if (EPSILON < std::abs(points[i].x - current_footprint[i].x)
+        || EPSILON < std::abs(points[i].y - current_footprint[i].y))
       {
         is_changed = true;
         break;
@@ -396,7 +397,7 @@ void Costmap2DROS::reconfigureCB(costmap_2d::Costmap2DConfig &config, uint32_t l
   if (footprint_padding_ != config.footprint_padding)
   {
     footprint_padding_ = config.footprint_padding;
-    setUnpaddedRobotFootprint(unpadded_footprint_);
+    setUnpaddedRobotFootprint(getUnpaddedRobotFootprint());
   }
 
   readFootprintFromConfig(config, old_config_);
@@ -440,11 +441,15 @@ void Costmap2DROS::readFootprintFromConfig(const costmap_2d::Costmap2DConfig &ne
 
 void Costmap2DROS::setUnpaddedRobotFootprint(const std::vector<geometry_msgs::Point>& points)
 {
-  unpadded_footprint_ = points;
-  padded_footprint_ = points;
-  padFootprint(padded_footprint_, footprint_padding_);
+  std::vector<geometry_msgs::Point> padded = points;
+  padFootprint(padded, footprint_padding_);
+  {
+    std::lock_guard<std::mutex> lock(footprint_mutex_);
+    unpadded_footprint_ = points;
+    padded_footprint_ = padded;
+  }
 
-  layered_costmap_->setFootprint(padded_footprint_);
+  layered_costmap_->setFootprint(padded);
 }
 
 void Costmap2DROS::movementCB(const ros::TimerEvent &event)
@@ -536,7 +541,7 @@ void Costmap2DROS::updateMap()
       geometry_msgs::PolygonStamped footprint;
       footprint.header.frame_id = global_frame_;
       footprint.header.stamp = ros::Time::now();
-      transformFootprint(x, y, yaw, padded_footprint_, footprint);
+      transformFootprint(x, y, yaw, getRobotFootprint(), footprint);
       footprint_pub_.publish(footprint);
 
       initialized_ = true;
@@ -665,8 +670,13 @@ void Costmap2DROS::getOrientedFootprint(std::vector<geometry_msgs::Point>& orien
     return;
 
   double yaw = tf2::getYaw(global_pose.pose.orientation);
+  std::vector<geometry_msgs::Point> padded_footprint;
+  {
+    std::lock_guard<std::mutex> lock(footprint_mutex_);
+    padded_footprint = padded_footprint_;
+  }
   transformFootprint(global_pose.pose.position.x, global_pose.pose.position.y, yaw,
-                     padded_footprint_, oriented_footprint);
+                     padded_footprint, oriented_footprint);
 }
 
 }  // namespace costmap_2d
