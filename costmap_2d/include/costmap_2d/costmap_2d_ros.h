@@ -181,6 +181,7 @@ public:
   /** @brief Returns the current padded footprint as a geometry_msgs::Polygon. */
   geometry_msgs::Polygon getRobotFootprintPolygon()
   {
+    std::lock_guard<std::mutex> lock(footprint_mutex_);
     return costmap_2d::toPolygon(padded_footprint_);
   }
 
@@ -194,6 +195,7 @@ public:
    * on the "footprint" topic. */
   std::vector<geometry_msgs::Point> getRobotFootprint()
   {
+    std::lock_guard<std::mutex> lock(footprint_mutex_);
     return padded_footprint_;
   }
 
@@ -206,6 +208,7 @@ public:
    * on the "footprint" topic. */
   std::vector<geometry_msgs::Point> getUnpaddedRobotFootprint()
   {
+    std::lock_guard<std::mutex> lock(footprint_mutex_);
     return unpadded_footprint_;
   }
 
@@ -284,6 +287,7 @@ private:
   ros::Publisher footprint_pub_;
   std::vector<geometry_msgs::Point> unpadded_footprint_;
   std::vector<geometry_msgs::Point> padded_footprint_;
+  mutable std::mutex footprint_mutex_;
   float footprint_padding_;
   costmap_2d::Costmap2DConfig old_config_;
 };
